@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mesure crânienne</title>
+<meta name="description" content="Mesure assistée CVAI / indice céphalique sur photos — traitement local, aucune donnée conservée.">
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#ffffff; --ink:#1b1f24; --muted:#6b7480; --line:#e2e5ea;
+  --accent:#1f6feb; --accent-ink:#ffffff; --ok:#1a7f37; --warn:#b35900; --danger:#c62828;
+  --r:8px; --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+  --aside:340px; --header:56px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink)}
+body{display:grid;grid-template-rows:var(--header) 1fr;overflow:hidden}
+button,input{font:inherit}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- en-tête ---------- */
+header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:var(--s4);
+  padding:0 var(--s4);background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:16px;font-weight:650;white-space:nowrap}
+nav.tabs{display:flex;gap:var(--s1);justify-self:center}
+nav.tabs button{height:36px;padding:0 var(--s4);border:1px solid transparent;border-radius:var(--r);
+  background:none;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:var(--s2)}
+nav.tabs button.on{background:var(--bg);color:var(--ink);border-color:var(--line);font-weight:600}
+nav.tabs .badge{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--line);
+  font-size:12px;line-height:20px;text-align:center;color:var(--ink)}
+nav.tabs button.on .badge{background:var(--accent);color:var(--accent-ink)}
+.hdr-right{display:flex;align-items:center;gap:var(--s3)}
+.ref{display:flex;align-items:center;gap:var(--s2);font-size:13px;color:var(--muted)}
+.ref input{width:64px;height:32px;padding:0 var(--s2);border:1px solid var(--line);border-radius:6px;text-align:right}
+
+/* ---------- boutons ---------- */
+.btn{height:36px;padding:0 var(--s3);border:1px solid var(--line);border-radius:var(--r);background:var(--panel);
+  color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);white-space:nowrap}
+.btn:hover{border-color:#c4c9d1}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.active{border-color:var(--accent);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.ghost{border-color:transparent;background:none;color:var(--muted)}
+
+/* ---------- mise en page ---------- */
+main{display:grid;grid-template-columns:var(--aside) minmax(0,1fr);min-height:0;min-width:0}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow:auto;padding:var(--s4);
+  display:flex;flex-direction:column;gap:var(--s5)}
+section h2{margin:0 0 var(--s3);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s2)}
+
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:var(--s2);margin-top:var(--s2)}
+.thumb{position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;border:2px solid transparent;cursor:pointer;background:#ddd}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb.cur{border-color:var(--accent)}
+.thumb .tag{position:absolute;left:0;right:0;bottom:0;padding:2px 4px;font-size:11px;text-align:center;
+  background:rgba(0,0,0,.6);color:#fff}
+.thumb.ok .tag{background:rgba(26,127,55,.88)}
+.thumb.skip{opacity:.45}
+.empty{font-size:13px;color:var(--muted);margin:var(--s2) 0 0}
+
+ol.steps{list-style:none;margin:0;padding:0;display:grid;gap:var(--s1)}
+ol.steps li{display:grid;grid-template-columns:22px 1fr;align-items:center;gap:var(--s2);font-size:14px;color:var(--muted);height:28px}
+ol.steps li .dot{width:22px;height:22px;border-radius:11px;border:1.5px solid var(--line);display:grid;place-items:center;font-size:12px}
+ol.steps li.done{color:var(--ink)} ol.steps li.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+ol.steps li.now{color:var(--accent);font-weight:600} ol.steps li.now .dot{border-color:var(--accent)}
+ol.steps li.na{display:none}
+
+.tools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s2)}
+.tools .btn,.row2 .btn{min-width:0;padding:0 var(--s2);font-size:14px;overflow:hidden;text-overflow:ellipsis}
+.slider{display:grid;grid-template-columns:auto 1fr 44px;align-items:center;gap:var(--s3);margin-top:var(--s3);font-size:14px}
+.slider output{text-align:right}
+
+.result{border:1px solid var(--line);border-radius:var(--r);padding:var(--s3) var(--s4);display:grid;gap:var(--s2)}
+.kv{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:var(--s3)}
+.kv .k{font-size:14px;color:var(--muted)}
+.kv .v{font-size:20px;font-weight:650;text-align:right}
+.kv .v small{font-size:13px;font-weight:500;color:var(--muted);margin-left:2px}
+.note{font-size:12px;color:var(--warn)}
+.actions{display:grid;grid-template-columns:1fr 2fr;gap:var(--s2);margin-top:auto}
+
+/* ---------- zone image ---------- */
+.stage{position:relative;min-height:0;background:#20242a;overflow:hidden;touch-action:none}
+canvas#cv{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+.banner{position:absolute;top:var(--s3);left:50%;transform:translateX(-50%);max-width:calc(100% - 24px);
+  padding:var(--s2) var(--s4);border-radius:20px;background:rgba(15,18,22,.82);color:#fff;font-size:14px;
+  text-align:center;pointer-events:none}
+.zoom{position:absolute;right:var(--s3);bottom:var(--s3);display:flex;gap:var(--s1)}
+.zoom .btn{width:40px;padding:0;background:rgba(255,255,255,.92)}
+.zoom .btn.fit{width:auto;padding:0 var(--s3)}
+.busy{position:absolute;inset:0;display:none;place-items:center;background:rgba(0,0,0,.35);color:#fff;font-size:15px}
+.busy.on{display:grid}
+.drop{position:absolute;inset:0;display:grid;place-items:center;color:#aeb6c1;text-align:center;padding:var(--s5);pointer-events:none}
+.drop p{margin:0 0 var(--s2)}
+
+/* ---------- synthèse ---------- */
+.summary{grid-column:1 / -1;overflow:auto;padding:var(--s5)}
+.summary .wrap{max-width:820px;margin:0 auto;display:grid;gap:var(--s4)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:var(--s4) var(--s5)}
+.card h3{margin:0 0 var(--s3);font-size:15px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:6px 0;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted);font-size:12px}
+tr.mean td{font-weight:700;border-bottom:none;padding-top:10px}
+.big{display:grid;grid-template-columns:1fr auto;align-items:baseline}
+.big .v{font-size:28px;font-weight:700}
+.class{display:inline-block;margin-top:var(--s2);padding:2px 10px;border-radius:12px;font-size:13px;font-weight:600}
+.privacy{font-size:12px;color:var(--muted);text-align:center}
+.hidden{display:none!important}
+.short{display:none}
+
+@media (max-width: 1100px){
+  :root{--aside:300px;--header:auto}
+  header{grid-template-columns:1fr auto;padding:var(--s2) var(--s3);row-gap:var(--s2)}
+  nav.tabs{grid-column:1 / -1;grid-row:2;justify-self:stretch;justify-content:space-between}
+  nav.tabs button{padding:0 var(--s2);flex:1;min-width:0;justify-content:center}
+}
+@media (max-width: 760px){
+  .ref span,.long{display:none} .short{display:inline}
+  main{grid-template-columns:minmax(0,1fr);grid-template-rows:62vh auto;overflow:auto}
+  .stage{grid-row:1} aside{grid-row:2;border-right:none;overflow:visible;padding-bottom:0}
+  .actions{position:sticky;bottom:0;background:var(--panel);padding:var(--s3) 0;border-top:1px solid var(--line);margin:0}
+  body{overflow:auto}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mesure crânienne</h1>
+  <nav class="tabs" id="tabs">
+    <button data-v="dessus">Dessus <span class="badge num">0</span></button>
+    <button data-v="profil">Profil <span class="badge num">0</span></button>
+    <button data-v="face">Face <span class="badge num">0</span></button>
+    <button data-v="synthese">Synthèse</button>
+  </nav>
+  <div class="hdr-right">
+    <label class="ref"><span>Référence</span> <input id="refmm" class="num" type="number" min="1" step="0.5" value="50"> mm</label>
+    <button class="btn ghost" id="reset" title="Effacer toutes les photos et mesures"><span class="long">Nouvelle séance</span><span class="short">Effacer</span></button>
+  </div>
+</header>
+
+<main id="main">
+  <aside id="aside">
+    <section>
+      <h2>Photos</h2>
+      <div class="row2">
+        <label class="btn primary">Prendre une photo<input id="cam" type="file" accept="image/*" capture="environment" hidden></label>
+        <label class="btn">Importer…<input id="files" type="file" accept="image/*" multiple hidden></label>
+      </div>
+      <div class="thumbs" id="thumbs"></div>
+      <p class="empty" id="empty">Aucune photo pour cette vue.</p>
+    </section>
+
+    <section>
+      <h2>Étapes</h2>
+      <ol class="steps" id="steps">
+        <li data-s="calib"><span class="dot">1</span><span>Calibration (référence)</span></li>
+        <li data-s="rect"><span class="dot">2</span><span>Cadrer la tête</span></li>
+        <li data-s="point"><span class="dot">3</span><span id="pointLabel">Pointer le nez</span></li>
+        <li data-s="idle"><span class="dot">4</span><span>Contrôler et valider</span></li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Outils</h2>
+      <div class="tools">
+        <button class="btn" data-tool="calib">Calibrer</button>
+        <button class="btn" data-tool="rect">Recadrer</button>
+        <button class="btn" data-tool="point" id="toolPoint">Repointer</button>
+        <button class="btn" data-tool="caliper" id="toolCaliper">Pied à coulisse</button>
+        <button class="btn" data-tool="manual">Contour manuel</button>
+        <button class="btn hidden" id="finishManual">Terminer le contour</button>
+      </div>
+      <div class="slider">
+        <label for="smooth">Lissage</label>
+        <input id="smooth" type="range" min="0" max="0.30" step="0.01" value="0.18">
+        <output id="smoothOut" class="num">0,18</output>
+      </div>
+    </section>
+
+    <section>
+      <h2>Mesure</h2>
+      <div class="result" id="result"><span class="empty">—</span></div>
+    </section>
+
+    <div class="actions">
+      <button class="btn" id="skip">Ignorer</button>
+      <button class="btn primary" id="validate">Valider ⏎</button>
+    </div>
+  </aside>
+
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="drop" id="drop"><div><p>Ajoutez une ou plusieurs photos</p><p style="font-size:13px">Les images restent sur cet appareil et disparaissent à la fermeture de la page.</p></div></div>
+    <div class="banner hidden" id="banner"></div>
+    <div class="zoom">
+      <button class="btn" id="zOut" title="Dézoomer">−</button>
+      <button class="btn fit" id="zFit">Ajuster</button>
+      <button class="btn" id="zIn" title="Zoomer">+</button>
+    </div>
+    <div class="busy" id="busy">Détourage…</div>
+  </div>
+
+  <div class="summary hidden" id="summary"><div class="wrap" id="sumWrap"></div></div>
+</main>
+
+<script id="geom">
+"use strict";
+/* =====================================================================
+   Segmentation (pur JavaScript, sans dépendance)
+   ===================================================================== */
+const Seg = (() => {
+  function toLab(r, g, b) {
+    const f = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    let R = f(r), G = f(g), B = f(b);
+    let X = (0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047;
+    let Y = (0.2126 * R + 0.7152 * G + 0.0722 * B);
+    let Z = (0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883;
+    const h = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+    X = h(X); Y = h(Y); Z = h(Z);
+    return [116 * Y - 16, 500 * (X - Y), 200 * (Y - Z)];
+  }
+  function kmeans(samples, k, iters = 8, init = null) {
+    const n = samples.length / 3;
+    if (n === 0) return [];
+    k = Math.min(k, n);
+    let C = init && init.length === k * 3 ? Float64Array.from(init) : new Float64Array(k * 3);
+    if (!init || init.length !== k * 3) for (let j = 0; j < k; j++) {
+      const i = Math.floor((j + 0.5) * n / k) * 3; C[j*3] = samples[i]; C[j*3+1] = samples[i+1]; C[j*3+2] = samples[i+2];
+    }
+    const acc = new Float64Array(k * 4);
+    for (let it = 0; it < iters; it++) {
+      acc.fill(0);
+      for (let i = 0; i < n; i++) {
+        const a = samples[i*3], b = samples[i*3+1], c = samples[i*3+2];
+        let best = 0, bd = Infinity;
+        for (let j = 0; j < k; j++) { const d = (a-C[j*3])**2 + (b-C[j*3+1])**2 + (c-C[j*3+2])**2; if (d < bd) { bd = d; best = j; } }
+        acc[best*4] += a; acc[best*4+1] += b; acc[best*4+2] += c; acc[best*4+3]++;
+      }
+      for (let j = 0; j < k; j++) if (acc[j*4+3] > 0) { C[j*3] = acc[j*4]/acc[j*4+3]; C[j*3+1] = acc[j*4+1]/acc[j*4+3]; C[j*3+2] = acc[j*4+2]/acc[j*4+3]; }
+    }
+    return C;
+  }
+  function nearest(C, a, b, c) {
+    let bd = Infinity;
+    for (let j = 0; j < C.length; j += 3) { const d = (a-C[j])**2 + (b-C[j+1])**2 + (c-C[j+2])**2; if (d < bd) bd = d; }
+    return Math.sqrt(bd);
+  }
+  function sample(lab, idxs, max) {
+    const step = Math.max(1, Math.floor(idxs.length / max));
+    const out = [];
+    for (let i = 0; i < idxs.length; i += step) { const p = idxs[i] * 3; out.push(lab[p], lab[p+1], lab[p+2]); }
+    return out;
+  }
+  function boxBlur(src, w, h, r) {
+    const tmp = new Float32Array(w * h), out = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) { let s = 0; const o = y * w;
+      for (let x = -r; x <= r; x++) s += src[o + Math.min(w-1, Math.max(0, x))];
+      for (let x = 0; x < w; x++) { tmp[o+x] = s / (2*r+1);
+        s += src[o + Math.min(w-1, x+r+1)] - src[o + Math.max(0, x-r)]; } }
+    for (let x = 0; x < w; x++) { let s = 0;
+      for (let y = -r; y <= r; y++) s += tmp[Math.min(h-1, Math.max(0, y)) * w + x];
+      for (let y = 0; y < h; y++) { out[y*w+x] = s / (2*r+1);
+        s += tmp[Math.min(h-1, y+r+1) * w + x] - tmp[Math.max(0, y-r) * w + x]; } }
+    return out;
+  }
+  /* rgba: Uint8ClampedArray (w*h*4) ; rect en pixels de travail -> masque Uint8Array */
+  function segment(rgba, w, h, rect) {
+    const lab = new Float32Array(w * h * 3);
+    for (let i = 0; i < w * h; i++) { const L = toLab(rgba[i*4], rgba[i*4+1], rgba[i*4+2]); lab[i*3] = L[0]; lab[i*3+1] = L[1]; lab[i*3+2] = L[2]; }
+    let [x0, y0, x1, y1] = rect.map(Math.round);
+    x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(w - 1, x1); y1 = Math.min(h - 1, y1);
+    const rw = x1 - x0, rh = y1 - y0, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const m = Math.round(0.10 * Math.max(rw, rh));
+    const band = [], inner = [], fgSeed = [], inRect = [];
+    for (let y = Math.max(0, y0 - m); y <= Math.min(h - 1, y1 + m); y++)
+      for (let x = Math.max(0, x0 - m); x <= Math.min(w - 1, x1 + m); x++) {
+        const i = y * w + x;
+        const inside = x >= x0 && x <= x1 && y >= y0 && y <= y1;
+        if (!inside) { band.push(i); continue; }
+        inRect.push(i);
+        const ex = (x - cx) / (0.30 * rw), ey = (y - cy) / (0.30 * rh);
+        if (ex*ex + ey*ey <= 1) fgSeed.push(i);
+        if (x - x0 < 0.03*rw || x1 - x < 0.03*rw || y - y0 < 0.03*rh || y1 - y < 0.03*rh) inner.push(i);
+      }
+    let bgIdx = band.length > 400 ? band : band.concat(inner);
+    let Cb = kmeans(sample(lab, bgIdx, 5000), 6);
+    let Cf = kmeans(sample(lab, fgSeed, 5000), 6);
+    let prob = new Float32Array(w * h);
+    for (let pass = 0; pass < 3; pass++) {
+      for (const i of inRect) {
+        const a = lab[i*3], b = lab[i*3+1], c = lab[i*3+2];
+        const dB = nearest(Cb, a, b, c), dF = nearest(Cf, a, b, c);
+        prob[i] = dB / (dB + dF + 1e-6);
+      }
+      if (pass === 2) break;
+      const f = [], g = bgIdx.slice();
+      for (const i of inRect) (prob[i] > 0.5 ? f : g).push(i);
+      Cf = kmeans(sample(lab, f, 6000), 6, 6, Cf);
+      Cb = kmeans(sample(lab, g, 6000), 6, 6, Cb);
+    }
+    const r = Math.max(1, Math.round(0.006 * Math.max(rw, rh)));
+    prob = boxBlur(boxBlur(prob, w, h, r), w, h, r);
+    const mask = new Uint8Array(w * h);
+    for (const i of inRect) mask[i] = prob[i] > 0.5 ? 1 : 0;
+    return mask;
+  }
+
+  /* ---- morphologie ---- */
+  function largestComponent(mask, w, h) {
+    const lab = new Int32Array(w * h); let best = 0, bestN = 0, cur = 0;
+    const st = new Int32Array(w * h);
+    for (let s = 0; s < w * h; s++) {
+      if (!mask[s] || lab[s]) continue;
+      cur++; let sp = 0, n = 0; st[sp++] = s; lab[s] = cur;
+      while (sp) { const i = st[--sp]; n++; const x = i % w, y = (i / w) | 0;
+        if (x > 0 && mask[i-1] && !lab[i-1]) { lab[i-1] = cur; st[sp++] = i-1; }
+        if (x < w-1 && mask[i+1] && !lab[i+1]) { lab[i+1] = cur; st[sp++] = i+1; }
+        if (y > 0 && mask[i-w] && !lab[i-w]) { lab[i-w] = cur; st[sp++] = i-w; }
+        if (y < h-1 && mask[i+w] && !lab[i+w]) { lab[i+w] = cur; st[sp++] = i+w; } }
+      if (n > bestN) { bestN = n; best = cur; }
+    }
+    const out = new Uint8Array(w * h);
+    if (best) for (let i = 0; i < w * h; i++) out[i] = lab[i] === best ? 1 : 0;
+    return { mask: out, area: bestN };
+  }
+  function fillHoles(mask, w, h) {
+    const outside = new Uint8Array(w * h), st = new Int32Array(w * h); let sp = 0;
+    const push = i => { if (!mask[i] && !outside[i]) { outside[i] = 1; st[sp++] = i; } };
+    for (let x = 0; x < w; x++) { push(x); push((h-1)*w + x); }
+    for (let y = 0; y < h; y++) { push(y*w); push(y*w + w-1); }
+    while (sp) { const i = st[--sp]; const x = i % w, y = (i / w) | 0;
+      if (x > 0) push(i-1); if (x < w-1) push(i+1); if (y > 0) push(i-w); if (y < h-1) push(i+w); }
+    const out = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) out[i] = outside[i] ? 0 : 1;
+    return out;
+  }
+  // distance euclidienne au carré au pixel "feature" le plus proche (Felzenszwalb)
+  function edt(feature, w, h) {
+    const INF = 1e20, d = new Float64Array(w * h);
+    for (let i = 0; i < w * h; i++) d[i] = feature[i] ? 0 : INF;
+    const n = Math.max(w, h), f = new Float64Array(n), z = new Float64Array(n + 1), v = new Int32Array(n), o = new Float64Array(n);
+    const pass = (len, get, set) => {
+      for (let q = 0; q < len; q++) f[q] = get(q);
+      let k = 0; v[0] = 0; z[0] = -INF; z[1] = INF;
+      for (let q = 1; q < len; q++) {
+        let s;
+        while (true) { const p = v[k]; s = ((f[q] + q*q) - (f[p] + p*p)) / (2*q - 2*p); if (s <= z[k]) { k--; if (k < 0) { k = 0; break; } } else break; }
+        k++; v[k] = q; z[k] = s; z[k+1] = INF;
+      }
+      k = 0;
+      for (let q = 0; q < len; q++) { while (z[k+1] < q) k++; o[q] = (q - v[k])**2 + f[v[k]]; }
+      for (let q = 0; q < len; q++) set(q, o[q]);
+    };
+    for (let x = 0; x < w; x++) pass(h, y => d[y*w+x], (y, val) => d[y*w+x] = val);
+    for (let y = 0; y < h; y++) pass(w, x => d[y*w+x], (x, val) => d[y*w+x] = val);
+    return d;
+  }
+  function opening(mask, w, h, r) {
+    if (r < 1) return mask;
+    const inv = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) inv[i] = mask[i] ? 0 : 1;
+    const dIn = edt(inv, w, h), r2 = r * r;
+    const er = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) er[i] = dIn[i] > r2 ? 1 : 0;
+    const dEr = edt(er, w, h);
+    const out = new Uint8Array(w * h); for (let i = 0; i < w * h; i++) out[i] = dEr[i] <= r2 ? 1 : 0;
+    return out;
+  }
+  // contour externe (suivi de Moore) puis lissage léger
+  function trace(mask, w, h) {
+    let start = -1;
+    for (let i = 0; i < w * h; i++) if (mask[i]) { start = i; break; }
+    if (start < 0) return null;
+    const at = (x, y) => x >= 0 && y >= 0 && x < w && y < h && mask[y*w+x];
+    const dx = [1, 1, 0, -1, -1, -1, 0, 1], dy = [0, 1, 1, 1, 0, -1, -1, -1];
+    let x = start % w, y = (start / w) | 0, dir = 7;
+    const sx = x, sy = y, pts = [];
+    for (let guard = 0; guard < 4 * w * h; guard++) {
+      pts.push([x, y]);
+      let found = false;
+      const s0 = dir % 2 === 0 ? (dir + 7) % 8 : (dir + 6) % 8;   // règle du code de Freeman
+      for (let k = 0; k < 8; k++) {
+        const d = (s0 + k) % 8;
+        const nx = x + dx[d], ny = y + dy[d];
+        if (at(nx, ny)) { x = nx; y = ny; dir = d; found = true; break; }
+      }
+      if (!found || (x === sx && y === sy && pts.length > 2)) break;
+    }
+    // lissage circulaire (moyenne glissante) — décale le contour de +0,5 px pour centrer sur les bords
+    const n = pts.length, W = 3, out = [];
+    for (let i = 0; i < n; i++) { let ax = 0, ay = 0;
+      for (let k = -W; k <= W; k++) { const p = pts[(i + k + n) % n]; ax += p[0]; ay += p[1]; }
+      out.push([ax / (2*W+1) + 0.5, ay / (2*W+1) + 0.5]); }
+    return out;
+  }
+  function contourFromMask(raw, w, h, smooth) {
+    let { mask, area } = largestComponent(raw, w, h);
+    if (!area) return null;
+    mask = fillHoles(mask, w, h);
+    const r = smooth * Math.sqrt(area);
+    mask = opening(mask, w, h, r);
+    ({ mask, area } = largestComponent(mask, w, h));
+    if (area < 50) return null;
+    return trace(mask, w, h);
+  }
+  return { segment, contourFromMask, edt };
+})();
+
+/* =====================================================================
+   Géométrie (portage direct de la version Python)
+   ===================================================================== */
+const Geo = (() => {
+  const DIAG = 30;
+  const sub = (a, b) => [a[0]-b[0], a[1]-b[1]], add = (a, b) => [a[0]+b[0], a[1]+b[1]];
+  const mul = (a, k) => [a[0]*k, a[1]*k], norm = a => Math.hypot(a[0], a[1]);
+  const rot = (u, deg) => { const t = deg * Math.PI / 180, c = Math.cos(t), s = Math.sin(t); return [c*u[0]-s*u[1], s*u[0]+c*u[1]]; };
+  function rayHit(C, o, d) {
+    let best = NaN;
+    for (let i = 0; i < C.length; i++) {
+      const P = C[i], Q = C[(i + 1) % C.length], ex = Q[0]-P[0], ey = Q[1]-P[1];
+      const den = -d[0]*ey + d[1]*ex; if (Math.abs(den) < 1e-12) continue;
+      const rx = P[0]-o[0], ry = P[1]-o[1];
+      const t = (-rx*ey + ry*ex) / den, s = (d[0]*ry - d[1]*rx) / den;
+      if (t > 0 && s >= 0 && s <= 1 && !(t <= best)) best = t;
+    }
+    return best;
+  }
+  function chord(C, c, u) {
+    const a = rayHit(C, c, u), b = rayHit(C, c, mul(u, -1));
+    return [a + b, add(c, mul(u, a)), sub(c, mul(u, b))];
+  }
+  function centroid(C) {
+    let A = 0, cx = 0, cy = 0;
+    for (let i = 0; i < C.length; i++) { const p = C[i], q = C[(i+1) % C.length], k = p[0]*q[1] - q[0]*p[1];
+      A += k; cx += (p[0]+q[0]) * k; cy += (p[1]+q[1]) * k; }
+    return [cx / (3*A), cy / (3*A)];
+  }
+  function dessus(C, nose) {
+    const g = centroid(C);
+    let u = sub(nose, g); u = mul(u, 1 / norm(u));
+    const v = [-u[1], u[0]];
+    const [L0] = chord(C, g, u);
+    let best = [-1];
+    for (let i = 0; i <= 140; i++) {
+      const o = -0.35*L0 + 0.7*L0*i/140, c = add(g, mul(u, o));
+      const [w, p1, p2] = chord(C, c, v);
+      if (isFinite(w) && w > best[0]) best = [w, c, p1, p2];
+    }
+    const [W, center, w1, w2] = best;
+    const [L, f, b] = chord(C, center, u);
+    const [d1, a1, a2] = chord(C, center, rot(u, DIAG));
+    const [d2, b1, b2] = chord(C, center, rot(u, -DIAG));
+    const dmax = Math.max(d1, d2), dmin = Math.min(d1, d2);
+    return { CVAI: 100 * (dmax - dmin) / dmax, IC2D: 100 * W / L, CVApx: dmax - dmin,
+      seg: { AP: [f, b], W: [w1, w2], D1: [a1, a2], D2: [b1, b2] }, pts: [center] };
+  }
+  function profil(C, gl) {
+    const g = centroid(C), back = Math.sign(g[0] - gl[0]) || 1;
+    let best = -1, op = null, bestAll = -1, opAll = null;
+    for (const p of C) {
+      const v = sub(p, gl), d = norm(v);
+      const ang = Math.abs(Math.atan2(v[1], v[0] * back)) * 180 / Math.PI;
+      if (d > bestAll) { bestAll = d; opAll = p; }
+      if (ang < 35 && d > best) { best = d; op = p; }
+    }
+    if (!op) { op = opAll; best = bestAll; }
+    return { Lpx: best, seg: { L: [gl, op] }, pts: [gl, op] };
+  }
+  function face(C) {
+    let y0 = Infinity, y1 = -Infinity; for (const p of C) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    let best = [-1];
+    for (let i = 0; i <= 300; i++) {
+      const y = y0 + 1 + (0.65 * (y1 - y0) - 1) * i / 300;
+      let xmin = Infinity, xmax = -Infinity;
+      for (let j = 0; j < C.length; j++) { const P = C[j], Q = C[(j+1) % C.length];
+        if ((P[1]-y) * (Q[1]-y) > 0 || P[1] === Q[1]) continue;
+        const x = P[0] + (y - P[1]) * (Q[0]-P[0]) / (Q[1]-P[1]); xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); }
+      if (xmax - xmin > best[0]) best = [xmax - xmin, [xmin, y], [xmax, y]];
+    }
+    return { Wpx: best[0], seg: { W: [best[1], best[2]] }, pts: [best[1], best[2]] };
+  }
+  // contour fermé lissé à partir de points cliqués (Catmull-Rom centripète simplifiée)
+  function closedSpline(P, per = 24) {
+    const n = P.length, out = [];
+    for (let i = 0; i < n; i++) {
+      const p0 = P[(i-1+n) % n], p1 = P[i], p2 = P[(i+1) % n], p3 = P[(i+2) % n];
+      for (let k = 0; k < per; k++) { const t = k / per, t2 = t*t, t3 = t2*t;
+        out.push([0, 1].map(j => 0.5 * ((2*p1[j]) + (-p0[j]+p2[j])*t + (2*p0[j]-5*p1[j]+4*p2[j]-p3[j])*t2 + (-p0[j]+3*p1[j]-3*p2[j]+p3[j])*t3))); }
+    }
+    return out;
+  }
+  function cvaiClass(c) {
+    if (c < 3.5) return ["Niveau 1 — normal", "#1a7f37"];
+    if (c < 6.25) return ["Niveau 2 — léger", "#7a8b00"];
+    if (c < 8.75) return ["Niveau 3 — modéré", "#b35900"];
+    if (c < 11) return ["Niveau 4 — sévère", "#c62828"];
+    return ["Niveau 5 — très sévère", "#8e0000"];
+  }
+  return { dessus, profil, face, closedSpline, cvaiClass, centroid };
+})();
+if (typeof module !== "undefined") module.exports = { Seg, Geo };
+</script>
+
+<script>
+"use strict";
+if (typeof document !== "undefined") (() => {
+/* =====================================================================
+   État (en mémoire uniquement)
+   ===================================================================== */
+const VIEWS = ["dessus", "profil", "face"];
+const SMOOTH = { dessus: 0.18, profil: 0.04, face: 0.18 };
+const POINT_LABEL = { dessus: "Pointer le nez", profil: "Pointer la glabelle" };
+const COL = { AP: "#ffffff", W: "#ffd400", D1: "#ff4d8d", D2: "#5cff6b", L: "#ffd400", pied: "#ff9f1c",
+              contour: "#00e5ff", calib: "#c77dff", point: "#ff3b3b", manual: "#ffd400" };
+const WORK_MAX = 700, IMG_MAX = 2000;
+const S = { view: "dessus", photos: { dessus: [], profil: [], face: [] }, cur: { dessus: null, profil: null, face: null },
+            tool: null, temp: [], drag: null, lastScale: null };
+let seq = 0;
+
+const $ = id => document.getElementById(id);
+const cv = $("cv"), ctx = cv.getContext("2d");
+const fmt = (x, d) => (x == null || !isFinite(x)) ? "—" : x.toFixed(d).replace(".", ",");
+const refMM = () => { const v = parseFloat($("refmm").value); return v > 0 ? v : null; };
+try { const r = localStorage.getItem("crane.refmm"); if (r) $("refmm").value = r; } catch (e) {}
+$("refmm").addEventListener("change", () => { try { localStorage.setItem("crane.refmm", $("refmm").value); } catch (e) {} ; S.lastScale = null; allPhotos().forEach(recompute); render(); });
+
+const allPhotos = () => VIEWS.flatMap(v => S.photos[v]);
+const cur = () => S.cur[S.view] && S.photos[S.view].find(p => p.id === S.cur[S.view]) || null;
+
+/* =====================================================================
+   Chargement des images
+   ===================================================================== */
+async function loadFiles(files) {
+  if (S.view === "synthese") return;
+  const view = S.view;
+  for (const file of files) {
+    let bmp;
+    try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+    catch (e) { alert(`Impossible de lire ${file.name}`); continue; }
+    const k = Math.min(1, IMG_MAX / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height); bmp.close && bmp.close();
+    const t = document.createElement("canvas"), tk = 160 / Math.max(c.width, c.height);
+    t.width = Math.round(c.width * tk); t.height = Math.round(c.height * tk);
+    t.getContext("2d").drawImage(c, 0, 0, t.width, t.height);
+    const ph = { id: ++seq, view, img: c, w: c.width, h: c.height, thumb: t.toDataURL("image/jpeg", 0.7),
+      status: "todo", rect: null, point: null, calib: null, caliper: null, manual: null, rawMask: null,
+      work: null, contour: null, smooth: SMOOTH[view], res: null, val: null, viewT: null };
+    S.photos[view].push(ph);
+    if (!S.cur[view] || cur()?.status !== "todo") S.cur[view] = ph.id;
+  }
+  const p = cur(); if (p) { fit(p); S.tool = nextStage(p); }
+  render();
+}
+$("files").addEventListener("change", e => { loadFiles([...e.target.files]); e.target.value = ""; });
+$("cam").addEventListener("change", e => { loadFiles([...e.target.files]); e.target.value = ""; });
+const stage = $("stage");
+stage.addEventListener("dragover", e => e.preventDefault());
+stage.addEventListener("drop", e => { e.preventDefault(); loadFiles([...e.dataTransfer.files].filter(f => f.type.startsWith("image/"))); });
+
+/* =====================================================================
+   Logique de mesure
+   ===================================================================== */
+function scaleOf(p) {
+  const ref = refMM();
+  if (p.calib && ref) return ref / Math.hypot(p.calib[0][0]-p.calib[1][0], p.calib[0][1]-p.calib[1][1]);
+  return null;
+}
+function effScale(p) { return scaleOf(p) ?? (p.view !== "dessus" ? S.lastScale : null); }
+
+function nextStage(p) {
+  if (!p) return null;
+  if (p.view !== "dessus" && !effScale(p) && refMM()) return "calib";
+  if (p.caliper) return "idle";
+  if (!p.contour) return "rect";
+  if (p.view !== "face" && !p.point) return "point";
+  return "idle";
+}
+
+function recompute(p) {
+  p.res = null;
+  if (p.caliper) {
+    const [a, b] = p.caliper, d = Math.hypot(a[0]-b[0], a[1]-b[1]);
+    p.res = { [p.view === "profil" ? "Lpx" : "Wpx"]: d, seg: { pied: [a, b] }, pts: [a, b], manuel: true };
+  } else if (p.contour) {
+    if (p.view === "dessus" && p.point) p.res = Geo.dessus(p.contour, p.point);
+    if (p.view === "profil" && p.point) p.res = Geo.profil(p.contour, p.point);
+    if (p.view === "face") p.res = Geo.face(p.contour);
+  }
+  const s = effScale(p);
+  p.val = null;
+  if (p.res) {
+    if (p.view === "dessus") p.val = { CVAI: p.res.CVAI, IC2D: p.res.IC2D, CVA: s ? p.res.CVApx * s : null };
+    if (p.view === "profil") p.val = { L: s ? p.res.Lpx * s : null, px: p.res.Lpx };
+    if (p.view === "face") p.val = { W: s ? p.res.Wpx * s : null, px: p.res.Wpx };
+  }
+}
+
+function setBusy(on) { $("busy").classList.toggle("on", on); }
+
+async function segmentPhoto(p) {
+  setBusy(true);
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const k = Math.min(1, WORK_MAX / Math.max(p.w, p.h));
+    const ww = Math.round(p.w * k), wh = Math.round(p.h * k);
+    const c = document.createElement("canvas"); c.width = ww; c.height = wh;
+    const g = c.getContext("2d"); g.drawImage(p.img, 0, 0, ww, wh);
+    const data = g.getImageData(0, 0, ww, wh).data;
+    const r = p.rect.map(v => v * k);
+    p.rawMask = Seg.segment(data, ww, wh, r);
+    p.work = { w: ww, h: wh, k };
+    buildContour(p);
+  } finally { setBusy(false); }
+}
+function buildContour(p) {
+  if (!p.rawMask) return;
+  const c = Seg.contourFromMask(p.rawMask, p.work.w, p.work.h, p.smooth);
+  p.contour = c ? c.map(([x, y]) => [x / p.work.k, y / p.work.k]) : null;
+  p.manual = null;
+}
+
+/* =====================================================================
+   Vue (zoom / déplacement)
+   ===================================================================== */
+function canvasSize() { const r = cv.getBoundingClientRect(); return [r.width, r.height]; }
+function fit(p) {
+  const [W, H] = canvasSize(); if (!p || !W) return;
+  const k = Math.min(W / p.w, H / p.h) * 0.94;
+  p.viewT = { k, tx: (W - p.w * k) / 2, ty: (H - p.h * k) / 2, auto: true, size: W + 'x' + H };
+}
+const toImg = (p, sx, sy) => [(sx - p.viewT.tx) / p.viewT.k, (sy - p.viewT.ty) / p.viewT.k];
+const toScr = (p, q) => [q[0] * p.viewT.k + p.viewT.tx, q[1] * p.viewT.k + p.viewT.ty];
+function zoomAt(p, f, sx, sy) {
+  p.viewT.auto = false;
+  const v = p.viewT, k2 = Math.min(40, Math.max(0.05, v.k * f));
+  const ix = (sx - v.tx) / v.k, iy = (sy - v.ty) / v.k;
+  v.k = k2; v.tx = sx - ix * k2; v.ty = sy - iy * k2;
+}
+
+/* =====================================================================
+   Interaction (souris, stylet, doigt)
+   ===================================================================== */
+const pointers = new Map();
+let gesture = null, spaceDown = false;
+const POINT_TOOLS = ["calib", "caliper", "point"];
+
+function localXY(e) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function handles(p) {
+  const H = [];
+  if (p.calib) p.calib.forEach((q, i) => H.push({ kind: "calib", i, q }));
+  if (p.caliper) p.caliper.forEach((q, i) => H.push({ kind: "caliper", i, q }));
+  if (p.point && !p.caliper) H.push({ kind: "point", q: p.point });
+  return H;
+}
+function hitHandle(p, sx, sy, touch) {
+  const R = touch ? 26 : 14; let best = null, bd = R;
+  for (const h of handles(p)) { const s = toScr(p, h.q), d = Math.hypot(s[0]-sx, s[1]-sy); if (d < bd) { bd = d; best = h; } }
+  return best;
+}
+
+cv.addEventListener("contextmenu", e => e.preventDefault());
+cv.addEventListener("pointerdown", e => {
+  const p = cur(); if (!p) return;
+  cv.setPointerCapture(e.pointerId);
+  const xy = localXY(e); pointers.set(e.pointerId, xy);
+  const touch = e.pointerType === "touch";
+  if (pointers.size === 2) {               // pincement / déplacement à deux doigts
+    S.drag = null; S.temp = S.temp.filter(t => t.done);
+    const [a, b] = [...pointers.values()];
+    gesture = { d: Math.hypot(a[0]-b[0], a[1]-b[1]), c: [(a[0]+b[0])/2, (a[1]+b[1])/2] };
+    render(); return;
+  }
+  if (e.button === 1 || e.button === 2 || spaceDown) { S.drag = { kind: "pan", last: xy }; return; }
+  const ip = toImg(p, ...xy);
+  const h = hitHandle(p, ...xy, touch);
+  if (h) { S.drag = { kind: "handle", h, q: ip, touch }; render(); return; }
+  switch (S.tool) {
+    case "rect": S.drag = { kind: "rect", a: ip, b: ip }; break;
+    case "calib": case "caliper": case "point":
+      S.drag = { kind: "place", q: ip, touch }; break;
+    case "manual": S.drag = { kind: "manual", q: ip, touch }; break;
+    default: S.drag = { kind: "pan", last: xy };
+  }
+  render();
+});
+cv.addEventListener("pointermove", e => {
+  const p = cur(); if (!p || !pointers.has(e.pointerId)) return;
+  const xy = localXY(e); pointers.set(e.pointerId, xy);
+  if (gesture && pointers.size === 2) {
+    const [a, b] = [...pointers.values()];
+    const d = Math.hypot(a[0]-b[0], a[1]-b[1]), c = [(a[0]+b[0])/2, (a[1]+b[1])/2];
+    p.viewT.tx += c[0] - gesture.c[0]; p.viewT.ty += c[1] - gesture.c[1];
+    zoomAt(p, d / gesture.d, c[0], c[1]); gesture = { d, c }; render(); return;
+  }
+  const D = S.drag; if (!D) return;
+  const ip = toImg(p, ...xy);
+  if (D.kind === "pan") { p.viewT.auto = false; p.viewT.tx += xy[0] - D.last[0]; p.viewT.ty += xy[1] - D.last[1]; D.last = xy; }
+  else if (D.kind === "rect") D.b = ip;
+  else { D.q = ip; D.screen = xy; }
+  render();
+});
+async function endPointer(e) {
+  const p = cur(); pointers.delete(e.pointerId);
+  if (gesture) { if (pointers.size < 2) gesture = null; S.drag = null; return; }
+  const D = S.drag; S.drag = null; if (!p || !D) { render(); return; }
+  if (D.kind === "rect") {
+    const x0 = Math.max(0, Math.min(D.a[0], D.b[0])), x1 = Math.min(p.w, Math.max(D.a[0], D.b[0]));
+    const y0 = Math.max(0, Math.min(D.a[1], D.b[1])), y1 = Math.min(p.h, Math.max(D.a[1], D.b[1]));
+    if (x1 - x0 > 20 && y1 - y0 > 20) {
+      p.rect = [x0, y0, x1, y1]; p.caliper = null;
+      await segmentPhoto(p);
+      afterChange(p);
+      if (!p.contour) banner("Détourage impossible — utilisez « Contour manuel » ou « Pied à coulisse »", true);
+    }
+  } else if (D.kind === "handle") {
+    const h = D.h;
+    if (h.kind === "calib") p.calib[h.i] = D.q;
+    if (h.kind === "caliper") p.caliper[h.i] = D.q;
+    if (h.kind === "point") p.point = D.q;
+    if (h.kind === "calib" && scaleOf(p)) S.lastScale = scaleOf(p);
+    recompute(p);
+  } else if (D.kind === "place") {
+    if (S.tool === "point") { p.point = D.q; p.caliper = null; afterChange(p); }
+    else {
+      S.temp.push(D.q);
+      if (S.temp.length === 2) {
+        if (S.tool === "calib") { p.calib = S.temp; S.lastScale = scaleOf(p); allPhotos().forEach(recompute); }
+        else { p.caliper = S.temp; }
+        S.temp = []; afterChange(p);
+      }
+    }
+  } else if (D.kind === "manual") {
+    p.manual = p.manual || []; p.manual.push(D.q);
+  }
+  render();
+}
+cv.addEventListener("pointerup", endPointer);
+cv.addEventListener("pointercancel", e => { pointers.delete(e.pointerId); gesture = null; S.drag = null; render(); });
+cv.addEventListener("wheel", e => {
+  const p = cur(); if (!p) return; e.preventDefault();
+  const [x, y] = localXY(e); zoomAt(p, Math.exp(-e.deltaY * 0.0015), x, y); render();
+}, { passive: false });
+
+function afterChange(p) { recompute(p); S.tool = nextStage(p); S.temp = []; }
+
+window.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.code === "Space") { spaceDown = true; e.preventDefault(); }
+  if (e.key === "Enter") validate();
+  if (e.key === "Escape") { const p = cur(); S.temp = []; if (p) { p.manual = null; S.tool = nextStage(p); } render(); }
+});
+window.addEventListener("keyup", e => { if (e.code === "Space") spaceDown = false; });
+window.addEventListener("resize", () => { const p = cur(); if (p) fit(p); render(); });
+
+/* =====================================================================
+   Boutons
+   ===================================================================== */
+$("tabs").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.view = b.dataset.v; S.temp = []; S.drag = null;
+  const p = cur(); if (p) { if (!p.viewT) fit(p); S.tool = nextStage(p); }
+  render();
+  if (p) requestAnimationFrame(() => { fit(p); render(); });
+});
+document.querySelectorAll("[data-tool]").forEach(b => b.addEventListener("click", () => {
+  const p = cur(); if (!p) return;
+  const t = b.dataset.tool;
+  S.temp = [];
+  if (t === "manual") { p.manual = []; }
+  S.tool = S.tool === t ? nextStage(p) : t;
+  render();
+}));
+$("finishManual").addEventListener("click", () => {
+  const p = cur(); if (!p || !p.manual || p.manual.length < 5) { banner("Placez au moins 5 points autour du crâne", true); return; }
+  p.contour = Geo.closedSpline(p.manual); p.manual = null; p.rawMask = null; p.caliper = null;
+  afterChange(p); render();
+});
+$("smooth").addEventListener("input", e => {
+  const p = cur(); const v = parseFloat(e.target.value);
+  $("smoothOut").textContent = fmt(v, 2);
+  if (p && p.rawMask) { p.smooth = v; buildContour(p); recompute(p); render(); }
+});
+$("zIn").onclick = () => { const p = cur(); if (p) { const [W, H] = canvasSize(); zoomAt(p, 1.4, W/2, H/2); render(); } };
+$("zOut").onclick = () => { const p = cur(); if (p) { const [W, H] = canvasSize(); zoomAt(p, 1/1.4, W/2, H/2); render(); } };
+$("zFit").onclick = () => { const p = cur(); if (p) { fit(p); render(); } };
+
+function gotoNext() {
+  const L = S.photos[S.view], i = L.findIndex(q => q.id === S.cur[S.view]);
+  const nxt = L.slice(i + 1).concat(L.slice(0, i)).find(q => q.status === "todo");
+  if (nxt) { S.cur[S.view] = nxt.id; if (!nxt.viewT) fit(nxt); S.tool = nextStage(nxt); }
+}
+function validate() {
+  const p = cur(); if (!p || !p.val) return;
+  if (p.view !== "dessus" && p.val.L == null && p.val.W == null) { banner("Calibration nécessaire pour une valeur en mm", true); return; }
+  p.status = "ok"; gotoNext(); render();
+}
+$("validate").onclick = validate;
+$("skip").onclick = () => { const p = cur(); if (!p) return; p.status = p.status === "skip" ? "todo" : "skip"; if (p.status === "skip") gotoNext(); render(); };
+$("reset").onclick = () => {
+  if (allPhotos().length && !confirm("Effacer toutes les photos et mesures de la séance ?")) return;
+  VIEWS.forEach(v => { S.photos[v] = []; S.cur[v] = null; }); S.lastScale = null; S.tool = null; S.temp = []; render();
+};
+$("thumbs").addEventListener("click", e => {
+  const t = e.target.closest(".thumb"); if (!t) return;
+  S.cur[S.view] = +t.dataset.id; const p = cur(); if (p.status === "ok") p.status = "todo";
+  if (!p.viewT) fit(p); S.tool = nextStage(p); S.temp = []; render();
+});
+
+/* =====================================================================
+   Rendu
+   ===================================================================== */
+let bannerTimer = null, bannerMsg = null;
+function banner(msg, warn) { bannerMsg = msg; clearTimeout(bannerTimer); bannerTimer = setTimeout(() => { bannerMsg = null; render(); }, 3500); render(); }
+
+function instruction(p) {
+  if (!p) return null;
+  const ref = refMM();
+  switch (S.tool) {
+    case "calib": return S.temp.length ? "Calibration — 2e extrémité de la référence" : `Calibration — touchez les 2 extrémités de la référence (${fmt(ref, 1)} mm)`;
+    case "rect": return "Tracez un cadre autour de la tête";
+    case "point": return p.view === "dessus" ? "Touchez la pointe du nez" : "Touchez la glabelle";
+    case "caliper": return S.temp.length ? "Pied à coulisse — 2e point" : "Pied à coulisse — touchez les 2 points de mesure";
+    case "manual": return `Contour manuel — touchez le pourtour du crâne (${p.manual ? p.manual.length : 0} points), puis « Terminer »`;
+    case "idle": return p.status === "ok" ? "Mesure validée" : "Contrôlez le tracé (points déplaçables), puis validez";
+  }
+  return null;
+}
+
+function render() {
+  const view = S.view, isSum = view === "synthese";
+  document.querySelectorAll("#tabs button").forEach(b => {
+    b.classList.toggle("on", b.dataset.v === view);
+    const badge = b.querySelector(".badge");
+    if (badge) badge.textContent = S.photos[b.dataset.v].filter(p => p.status === "ok").length;
+  });
+  $("aside").classList.toggle("hidden", isSum);
+  $("stage").classList.toggle("hidden", isSum);
+  $("summary").classList.toggle("hidden", !isSum);
+  if (isSum) { renderSummary(); return; }
+
+  const p = cur(), L = S.photos[view];
+  // vignettes
+  $("thumbs").innerHTML = L.map((q, i) => {
+    const tag = q.status === "ok" ? (view === "dessus" ? `${fmt(q.val.CVAI, 2)} %` : `${fmt(view === "profil" ? q.val.L : q.val.W, 1)} mm`)
+              : q.status === "skip" ? "ignorée" : `photo ${i + 1}`;
+    return `<div class="thumb ${q.status} ${p && q.id === p.id ? "cur" : ""}" data-id="${q.id}"><img src="${q.thumb}" alt=""><span class="tag num">${tag}</span></div>`;
+  }).join("");
+  $("empty").classList.toggle("hidden", L.length > 0);
+  $("drop").classList.toggle("hidden", !!p);
+
+  // étapes
+  $("pointLabel").textContent = POINT_LABEL[view] || "";
+  const order = ["calib", "rect", "point", "idle"];
+  const na = { calib: view === "dessus" && !(p && p.calib), point: view === "face" };
+  const done = p ? { calib: !!effScale(p), rect: !!(p.contour || p.caliper), point: !!(p.point || p.caliper), idle: p.status === "ok" } : {};
+  let n = 0;
+  document.querySelectorAll("#steps li").forEach(li => {
+    const s = li.dataset.s, dot = li.querySelector(".dot"); li.className = "";
+    if (na[s]) { li.classList.add("na"); return; }
+    n++;
+    if (done[s]) { li.classList.add("done"); dot.textContent = "✓"; } else dot.textContent = n;
+    if (p && S.tool === s && !done[s]) li.classList.add("now");
+  });
+
+  // outils
+  document.querySelectorAll("[data-tool]").forEach(b => { b.disabled = !p; b.classList.toggle("active", S.tool === b.dataset.tool); });
+  $("toolPoint").classList.toggle("hidden", view === "face");
+  $("toolPoint").textContent = view === "dessus" ? "Repointer le nez" : "Repointer glabelle";
+  $("toolCaliper").classList.toggle("hidden", view === "dessus");
+  $("finishManual").classList.toggle("hidden", S.tool !== "manual");
+  const sm = $("smooth"); sm.disabled = !(p && p.rawMask);
+  if (p) { sm.value = p.smooth; $("smoothOut").textContent = fmt(p.smooth, 2); }
+
+  // résultat
+  const r = $("result");
+  if (!p || !p.val) r.innerHTML = `<span class="empty">—</span>`;
+  else if (view === "dessus") {
+    const [cl, col] = Geo.cvaiClass(p.val.CVAI);
+    r.innerHTML = kv("CVAI", fmt(p.val.CVAI, 2), "%") + kv("IC (vue de dessus)", fmt(p.val.IC2D, 1), "%")
+      + (p.val.CVA != null ? kv("CVA", fmt(p.val.CVA, 1), "mm") : "")
+      + `<span class="class" style="background:${col}1f;color:${col}">${cl}</span>`;
+  } else {
+    const mm = view === "profil" ? p.val.L : p.val.W, name = view === "profil" ? "Longueur AP" : "Largeur max";
+    r.innerHTML = (mm != null ? kv(name, fmt(mm, 1), "mm") : kv(name, fmt(p.val.px, 0), "px"))
+      + (mm == null ? `<span class="note">Non calibrée : pas de valeur en mm</span>` : "")
+      + (p.res.manuel ? `<span class="note" style="color:var(--muted)">Mesure au pied à coulisse</span>` : "")
+      + (!scaleOf(p) && effScale(p) ? `<span class="note" style="color:var(--muted)">Échelle reprise de la photo précédente</span>` : "");
+  }
+  $("validate").disabled = !(p && p.val) || p.status === "ok";
+  $("skip").disabled = !p;
+  $("skip").textContent = p && p.status === "skip" ? "Rétablir" : "Ignorer";
+
+  // bandeau
+  const msg = bannerMsg || instruction(p);
+  $("banner").classList.toggle("hidden", !msg); $("banner").textContent = msg || "";
+
+  draw();
+}
+const kv = (k, v, u) => `<div class="kv"><span class="k">${k}</span><span class="v num">${v}<small>${u}</small></span></div>`;
+
+function draw() {
+  const dpr = window.devicePixelRatio || 1, [W, H] = canvasSize();
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const p = cur(); if (!p) return;
+  if (!p.viewT || (p.viewT.auto && p.viewT.size !== W + 'x' + H)) fit(p);
+  const v = p.viewT;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(p.img, v.tx, v.ty, p.w * v.k, p.h * v.k);
+
+  const S2 = q => toScr(p, q);
+  const line = (a, b, col, w = 2) => { const A = S2(a), B = S2(b);
+    ctx.lineWidth = w + 2; ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.beginPath(); ctx.moveTo(...A); ctx.lineTo(...B); ctx.stroke();
+    ctx.lineWidth = w; ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(...A); ctx.lineTo(...B); ctx.stroke(); };
+  const label = (q, txt, col) => { const [x, y] = S2(q); ctx.font = "600 12px system-ui"; const w = ctx.measureText(txt).width + 8;
+    ctx.fillStyle = "rgba(0,0,0,.7)"; ctx.fillRect(x - w/2, y - 9, w, 18); ctx.fillStyle = col; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(txt, x, y); };
+  const cross = (q, col, r = 9) => { const [x, y] = S2(q);
+    ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.moveTo(x-r-4, y); ctx.lineTo(x+r+4, y); ctx.moveTo(x, y-r-4); ctx.lineTo(x, y+r+4); ctx.stroke();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.moveTo(x-r-4, y); ctx.lineTo(x+r+4, y); ctx.moveTo(x, y-r-4); ctx.lineTo(x, y+r+4); ctx.stroke(); };
+
+  // contour
+  if (p.contour && S.tool !== "manual") {
+    ctx.lineWidth = 2; ctx.strokeStyle = COL.contour; ctx.beginPath();
+    p.contour.forEach((q, i) => { const s = S2(q); i ? ctx.lineTo(...s) : ctx.moveTo(...s); }); ctx.closePath(); ctx.stroke();
+  }
+  // contour manuel en cours
+  if (p.manual && p.manual.length) {
+    ctx.lineWidth = 1.5; ctx.strokeStyle = COL.manual; ctx.beginPath();
+    p.manual.forEach((q, i) => { const s = S2(q); i ? ctx.lineTo(...s) : ctx.moveTo(...s); }); ctx.stroke();
+    p.manual.forEach(q => { const [x, y] = S2(q); ctx.fillStyle = COL.manual; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill(); });
+  }
+  // calibration
+  const calib = S.drag?.kind === "handle" && S.drag.h.kind === "calib" ? p.calib.map((q, i) => i === S.drag.h.i ? S.drag.q : q) : p.calib;
+  if (calib) { line(calib[0], calib[1], COL.calib, 2); calib.forEach(q => cross(q, COL.calib, 6));
+    label([(calib[0][0]+calib[1][0])/2, (calib[0][1]+calib[1][1])/2 - 14 / v.k], `${fmt(refMM(), 1)} mm`, COL.calib); }
+  // segments de mesure
+  if (p.res && S.tool === "idle" && !(S.drag && S.drag.kind === "handle")) {
+    for (const [k, [a, b]] of Object.entries(p.res.seg)) { line(a, b, COL[k], 2); label(b, k === "pied" ? "" : k, COL[k]); }
+    p.res.pts.forEach(q => { const [x, y] = S2(q); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill(); });
+  }
+  if (p.caliper) { const c = S.drag?.kind === "handle" && S.drag.h.kind === "caliper" ? p.caliper.map((q, i) => i === S.drag.h.i ? S.drag.q : q) : p.caliper;
+    line(c[0], c[1], COL.pied, 2); c.forEach(q => cross(q, COL.pied, 6)); }
+  // point anatomique
+  const pt = S.drag?.kind === "handle" && S.drag.h.kind === "point" ? S.drag.q : p.point;
+  if (pt && !p.caliper) cross(pt, COL.point, 9);
+  // points temporaires
+  S.temp.forEach(q => cross(q, S.tool === "calib" ? COL.calib : COL.pied, 6));
+  // cadre en cours
+  if (S.drag?.kind === "rect") { const A = S2(S.drag.a), B = S2(S.drag.b);
+    ctx.setLineDash([6, 4]); ctx.lineWidth = 1.5; ctx.strokeStyle = "#fff"; ctx.strokeRect(A[0], A[1], B[0]-A[0], B[1]-A[1]); ctx.setLineDash([]); }
+  else if (p.rect && S.tool === "rect") { const A = S2([p.rect[0], p.rect[1]]), B = S2([p.rect[2], p.rect[3]]);
+    ctx.setLineDash([4, 4]); ctx.lineWidth = 1; ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.strokeRect(A[0], A[1], B[0]-A[0], B[1]-A[1]); ctx.setLineDash([]); }
+  // point en cours de placement + loupe
+  const D = S.drag;
+  if (D && (D.kind === "place" || D.kind === "handle" || D.kind === "manual")) {
+    const col = D.kind === "handle" ? COL[D.h.kind === "point" ? "point" : D.h.kind === "calib" ? "calib" : "pied"]
+              : S.tool === "calib" ? COL.calib : S.tool === "point" ? COL.point : S.tool === "manual" ? COL.manual : COL.pied;
+    cross(D.q, col, 7);
+    loupe(p, D.q, col);
+  }
+}
+
+function loupe(p, q, col) {
+  const [W] = canvasSize(), R = 72, Z = Math.max(3 * p.viewT.k, 1.5);
+  const s = toScr(p, q);
+  const cx = s[0] < W / 2 && s[1] < 220 ? W - R - 16 : R + 16, cy = R + 60;
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
+  ctx.fillStyle = "#000"; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+  ctx.imageSmoothingEnabled = Z < 6;
+  ctx.drawImage(p.img, cx - q[0] * Z, cy - q[1] * Z, p.w * Z, p.h * Z);
+  ctx.restore();
+  ctx.lineWidth = 3; ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.stroke();
+  ctx.lineWidth = 1; ctx.strokeStyle = col; ctx.beginPath();
+  ctx.moveTo(cx - R, cy); ctx.lineTo(cx - 5, cy); ctx.moveTo(cx + 5, cy); ctx.lineTo(cx + R, cy);
+  ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy - 5); ctx.moveTo(cx, cy + 5); ctx.lineTo(cx, cy + R); ctx.stroke();
+}
+
+/* =====================================================================
+   Synthèse
+   ===================================================================== */
+function stats(a) { const n = a.length; if (!n) return null; const m = a.reduce((s, x) => s + x, 0) / n;
+  const sd = n > 1 ? Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (n - 1)) : 0; return { m, sd, n }; }
+function computeSummary() {
+  const ok = v => S.photos[v].filter(p => p.status === "ok");
+  const D = ok("dessus"), P = ok("profil"), F = ok("face");
+  const out = { D, P, F,
+    cvai: stats(D.map(p => p.val.CVAI)), ic2d: stats(D.map(p => p.val.IC2D)),
+    cva: stats(D.filter(p => p.val.CVA != null).map(p => p.val.CVA)),
+    L: stats(P.filter(p => p.val.L != null).map(p => p.val.L)),
+    W: stats(F.filter(p => p.val.W != null).map(p => p.val.W)) };
+  if (out.L && out.W) { const ic = 100 * out.W.m / out.L.m;
+    out.ic = { m: ic, sd: ic * Math.hypot(out.W.sd / out.W.m, out.L.sd / out.L.m) }; }
+  return out;
+}
+const pm = (s, d) => `${fmt(s.m, d)} ± ${fmt(s.sd, d)}`;
+function renderSummary() {
+  const R = computeSummary(), cards = [];
+  if (R.cvai) {
+    const [cl, col] = Geo.cvaiClass(R.cvai.m);
+    cards.push(`<div class="card"><h3>Vue de dessus</h3>
+      <div class="big"><span>CVAI</span><span class="v num">${pm(R.cvai, 2)} %</span></div>
+      <span class="class" style="background:${col}1f;color:${col}">${cl}</span>
+      <table style="margin-top:12px"><tr><th>Photo</th><th>CVAI (%)</th><th>IC dessus (%)</th><th>CVA (mm)</th></tr>
+      ${R.D.map((p, i) => `<tr><td>${i+1}</td><td class="num">${fmt(p.val.CVAI, 2)}</td><td class="num">${fmt(p.val.IC2D, 1)}</td><td class="num">${fmt(p.val.CVA, 1)}</td></tr>`).join("")}
+      <tr class="mean"><td>Moyenne ± ET</td><td class="num">${pm(R.cvai, 2)}</td><td class="num">${pm(R.ic2d, 1)}</td><td class="num">${R.cva ? pm(R.cva, 1) : "—"}</td></tr></table></div>`);
+  }
+  if (R.L || R.W) {
+    const rows = (lst, key) => lst.map((p, i) => `<tr><td>${i+1}${p.res.manuel ? " (pied à coulisse)" : ""}</td><td class="num">${fmt(p.val[key], 1)}</td></tr>`).join("");
+    cards.push(`<div class="card"><h3>Profil et face</h3>
+      ${R.ic ? `<div class="big"><span>IC orthogonal</span><span class="v num">${pm(R.ic, 1)} %</span></div>
+      <p class="privacy" style="text-align:left;margin:4px 0 12px">Largeur (face) / longueur antéro-postérieure (profil) × 100</p>` : ""}
+      <div class="row2" style="gap:24px">
+        <table><tr><th>Profil</th><th>Longueur AP (mm)</th></tr>${rows(R.P.filter(p => p.val.L != null), "L")}
+          ${R.L ? `<tr class="mean"><td>Moyenne ± ET</td><td class="num">${pm(R.L, 1)}</td></tr>` : ""}</table>
+        <table><tr><th>Face</th><th>Largeur (mm)</th></tr>${rows(R.F.filter(p => p.val.W != null), "W")}
+          ${R.W ? `<tr class="mean"><td>Moyenne ± ET</td><td class="num">${pm(R.W, 1)}</td></tr>` : ""}</table>
+      </div></div>`);
+  }
+  if (!cards.length) cards.push(`<div class="card"><p class="empty" style="margin:0">Aucune mesure validée pour l'instant.</p></div>`);
+  else cards.push(`<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn primary" id="copy">Copier le résumé</button></div>`);
+  cards.push(`<p class="privacy">Traitement entièrement local : aucune image ni mesure n'est envoyée ni conservée. Tout est effacé à la fermeture de la page.</p>`);
+  $("sumWrap").innerHTML = cards.join("");
+  const c = $("copy"); if (c) c.onclick = async () => {
+    try { await navigator.clipboard.writeText(summaryText(R)); c.textContent = "Copié ✓"; setTimeout(() => c.textContent = "Copier le résumé", 1500); }
+    catch (e) { prompt("Copier le texte :", summaryText(R)); }
+  };
+}
+function summaryText(R) {
+  const L = [`Mesure crânienne — ${new Date().toLocaleDateString("fr-FR")}`];
+  if (R.cvai) L.push(`Dessus (n=${R.cvai.n}) : CVAI ${pm(R.cvai, 2)} % (${Geo.cvaiClass(R.cvai.m)[0]}) ; IC dessus ${pm(R.ic2d, 1)} %` + (R.cva ? ` ; CVA ${pm(R.cva, 1)} mm` : ""));
+  if (R.L) L.push(`Profil (n=${R.L.n}) : longueur AP ${pm(R.L, 1)} mm`);
+  if (R.W) L.push(`Face (n=${R.W.n}) : largeur ${pm(R.W, 1)} mm`);
+  if (R.ic) L.push(`IC orthogonal : ${pm(R.ic, 1)} %`);
+  return L.join("\n");
+}
+
+render();
+window.__crane = { S, render, cur };   // pour les tests
+})();
+</script>
+</body>
+</html>
