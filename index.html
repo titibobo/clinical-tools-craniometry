@@ -69,6 +69,9 @@ ol.steps li.na{display:none}
 
 .tools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s2)}
 .tools .btn,.row2 .btn{min-width:0;padding:0 var(--s2);font-size:14px;overflow:hidden;text-overflow:ellipsis}
+.manual-only{margin-top:var(--s2)}
+.check{display:grid;grid-template-columns:18px 1fr;align-items:center;gap:var(--s2);margin-top:var(--s3);font-size:14px;cursor:pointer}
+.check input{width:16px;height:16px;margin:0}
 .slider{display:grid;grid-template-columns:auto 1fr 44px;align-items:center;gap:var(--s3);margin-top:var(--s3);font-size:14px}
 .slider output{text-align:right}
 
@@ -103,10 +106,33 @@ table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{padding:6px 0;border-bottom:1px solid var(--line);text-align:right}
 th:first-child,td:first-child{text-align:left}
 th{font-weight:600;color:var(--muted);font-size:12px}
+th.txt,td.txt{text-align:left;padding-left:var(--s3)}
+.row2 > table{align-self:start}
 tr.mean td{font-weight:700;border-bottom:none;padding-top:10px}
 .big{display:grid;grid-template-columns:1fr auto;align-items:baseline}
 .big .v{font-size:28px;font-weight:700}
-.class{display:inline-block;margin-top:var(--s2);padding:2px 10px;border-radius:12px;font-size:13px;font-weight:600}
+.class{display:inline-block;justify-self:start;margin-top:var(--s2);padding:2px 10px;border-radius:12px;font-size:13px;font-weight:600}
+.metric{display:grid;gap:var(--s2);padding:var(--s3) 0;border-top:1px solid var(--line)}
+.metric:first-of-type{border-top:none;padding-top:0}
+.mhead{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:var(--s3)}
+.mtitle{font-size:14px;font-weight:600}
+.mval{font-size:24px;font-weight:700;text-align:right}
+.mval small{font-size:14px;font-weight:500;color:var(--muted)}
+.msub{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:var(--s3);font-size:12px;color:var(--muted)}
+.msub .class{margin:0}
+.gauge{margin-top:var(--s1)}
+.gauge .bar{position:relative;height:22px;border-radius:4px;overflow:visible}
+.gauge .seg{position:absolute;top:0;bottom:0;opacity:.9;display:grid;place-items:center;overflow:hidden;border-right:1px solid #fff}
+.gauge .seg:first-child{border-radius:4px 0 0 4px} .gauge .seg:last-of-type{border-radius:0 4px 4px 0;border-right:none}
+.gauge .seg span{font-size:11px;font-weight:600;color:#fff;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;padding:0 4px}
+.gauge .err{position:absolute;top:calc(100% + 3px);height:3px;background:var(--ink);border-radius:2px;opacity:.55}
+.gauge .mark{position:absolute;top:-5px;bottom:-5px;width:4px;margin-left:-2px;background:var(--ink);border:1px solid #fff;border-radius:2px}
+.gauge .ticks{position:relative;height:16px;margin-top:8px}
+.gauge .tick{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--muted)}
+.fine{font-size:12px;color:var(--muted);margin:var(--s3) 0 0;line-height:1.5}
+.reftab th{text-align:left;vertical-align:top;width:52px;font-size:13px;color:var(--ink)}
+.reftab td{text-align:left;vertical-align:top;font-size:13px;padding-right:var(--s3)}
+.reftab td:last-child{color:var(--muted);font-size:12px;width:34%;padding-right:0}
 .privacy{font-size:12px;color:var(--muted);text-align:center}
 .hidden{display:none!important}
 .short{display:none}
@@ -123,6 +149,7 @@ tr.mean td{font-weight:700;border-bottom:none;padding-top:10px}
   .stage{grid-row:1} aside{grid-row:2;border-right:none;overflow:visible;padding-bottom:0}
   .actions{position:sticky;bottom:0;background:var(--panel);padding:var(--s3) 0;border-top:1px solid var(--line);margin:0}
   body{overflow:auto}
+  .summary{padding:var(--s3)} .summary .row2{grid-template-columns:minmax(0,1fr)} .card{padding:var(--s4)} .mval{font-size:20px}
 }
 </style>
 </head>
@@ -155,25 +182,24 @@ tr.mean td{font-weight:700;border-bottom:none;padding-top:10px}
 
     <section>
       <h2>Étapes</h2>
-      <ol class="steps" id="steps">
-        <li data-s="calib"><span class="dot">1</span><span>Calibration (référence)</span></li>
-        <li data-s="rect"><span class="dot">2</span><span>Cadrer la tête</span></li>
-        <li data-s="point"><span class="dot">3</span><span id="pointLabel">Pointer le nez</span></li>
-        <li data-s="idle"><span class="dot">4</span><span>Contrôler et valider</span></li>
-      </ol>
+      <ol class="steps" id="steps"></ol>
     </section>
 
     <section>
       <h2>Outils</h2>
       <div class="tools">
         <button class="btn" data-tool="calib">Calibrer</button>
-        <button class="btn" data-tool="rect">Recadrer</button>
-        <button class="btn" data-tool="point" id="toolPoint">Repointer</button>
         <button class="btn" data-tool="caliper" id="toolCaliper">Pied à coulisse</button>
-        <button class="btn" data-tool="manual">Contour manuel</button>
-        <button class="btn hidden" id="finishManual">Terminer le contour</button>
+        <button class="btn" data-tool="rect" id="toolRect">Détourage auto</button>
+        <button class="btn" data-tool="manual" id="toolManual">Contour par points</button>
+        <button class="btn" data-tool="point" id="toolPoint">Repointer</button>
       </div>
-      <div class="slider">
+      <div class="tools manual-only hidden" id="manualBar">
+        <button class="btn" id="clearManual">Effacer les points</button>
+        <button class="btn primary" id="finishManual">Terminer le contour</button>
+      </div>
+      <label class="check" id="snapRow"><input type="checkbox" id="snap" checked> Ajuster automatiquement aux bords</label>
+      <div class="slider" id="smoothRow">
         <label for="smooth">Lissage</label>
         <input id="smooth" type="range" min="0" max="0.30" step="0.01" value="0.18">
         <output id="smoothOut" class="num">0,18</output>
@@ -404,7 +430,18 @@ const Seg = (() => {
     if (area < 50) return null;
     return trace(mask, w, h);
   }
-  return { segment, contourFromMask, edt };
+  // gradient (Sobel) d'une image en niveaux de gris légèrement floutée
+  function gradient(gray, w, h) {
+    const g = boxBlur(boxBlur(gray, w, h, 1), w, h, 1);
+    const gx = new Float32Array(w * h), gy = new Float32Array(w * h);
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      gx[i] = (g[i-w+1] + 2*g[i+1] + g[i+w+1]) - (g[i-w-1] + 2*g[i-1] + g[i+w-1]);
+      gy[i] = (g[i+w-1] + 2*g[i+w] + g[i+w+1]) - (g[i-w-1] + 2*g[i-w] + g[i-w+1]);
+    }
+    return { gx, gy, w, h };
+  }
+  return { segment, contourFromMask, edt, gradient };
 })();
 
 /* =====================================================================
@@ -490,14 +527,72 @@ const Geo = (() => {
     }
     return out;
   }
-  function cvaiClass(c) {
-    if (c < 3.5) return ["Niveau 1 — normal", "#1a7f37"];
-    if (c < 6.25) return ["Niveau 2 — léger", "#7a8b00"];
-    if (c < 8.75) return ["Niveau 3 — modéré", "#b35900"];
-    if (c < 11) return ["Niveau 4 — sévère", "#c62828"];
-    return ["Niveau 5 — très sévère", "#8e0000"];
+  function area(C) { let A = 0; for (let i = 0; i < C.length; i++) { const p = C[i], q = C[(i+1) % C.length]; A += p[0]*q[1] - q[0]*p[1]; } return A / 2; }
+  // rééchantillonnage régulier (abscisse curviligne) d'un contour fermé
+  function resample(C, N) {
+    const n = C.length, cum = [0];
+    for (let i = 0; i < n; i++) cum.push(cum[i] + norm(sub(C[(i+1) % n], C[i])));
+    const L = cum[n], out = []; let j = 0;
+    for (let k = 0; k < N; k++) {
+      const s = L * k / N; while (cum[j+1] < s) j++;
+      const t = (s - cum[j]) / Math.max(1e-9, cum[j+1] - cum[j]), a = C[j], b = C[(j+1) % n];
+      out.push([a[0] + t*(b[0]-a[0]), a[1] + t*(b[1]-a[1])]);
+    }
+    return out;
   }
-  return { dessus, profil, face, closedSpline, cvaiClass, centroid };
+  // position d'insertion d'un nouveau point : là où il allonge le moins le contour
+  function insertIndex(P, q) {
+    if (P.length < 3) return P.length;
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i+1) % P.length];
+      const d = norm(sub(a, q)) + norm(sub(q, b)) - norm(sub(a, b)); if (d < bd) { bd = d; best = i + 1; } }
+    return best;
+  }
+  /* Ajustement du contour aux bords de l'image : chaque point glisse le long de la normale
+     (± R) vers le gradient d'intensité le plus fort, avec un a priori qui favorise le tracé
+     de l'utilisateur ; les déplacements sont ensuite lissés (médiane puis moyenne glissantes). */
+  function snap(C, G, Rfrac = 0.04) {
+    const n = C.length, k = G.k, g = centroid(C);
+    const R = Math.max(3, Rfrac * Math.sqrt(Math.abs(area(C))) * k), sig = R / 1.2;
+    const samp = (A, x, y) => { const x0 = Math.floor(x), y0 = Math.floor(y);
+      if (x0 < 0 || y0 < 0 || x0 >= G.w - 1 || y0 >= G.h - 1) return 0;
+      const fx = x - x0, fy = y - y0, i = y0 * G.w + x0;
+      return A[i]*(1-fx)*(1-fy) + A[i+1]*fx*(1-fy) + A[i+G.w]*(1-fx)*fy + A[i+G.w+1]*fx*fy; };
+    const N = [], off = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const a = C[(i-1+n) % n], b = C[(i+1) % n]; let t = sub(b, a); t = mul(t, 1 / (norm(t) || 1));
+      let nr = [t[1], -t[0]]; if ((C[i][0]-g[0])*nr[0] + (C[i][1]-g[1])*nr[1] < 0) nr = mul(nr, -1);
+      N.push(nr);
+      let best = 0, bv = -1;
+      for (let s = -R; s <= R; s += 0.5) {
+        const x = C[i][0]*k + s*nr[0], y = C[i][1]*k + s*nr[1];
+        const v = Math.abs(samp(G.gx, x, y)*nr[0] + samp(G.gy, x, y)*nr[1]) * Math.exp(-s*s / (2*sig*sig));
+        if (v > bv) { bv = v; best = s; }
+      }
+      off[i] = best / k;
+    }
+    const circ = (arr, w, f) => arr.map((_, i) => f(Array.from({ length: 2*w+1 }, (_, j) => arr[(i + j - w + n) % n])));
+    let o = circ(Array.from(off), 4, a => a.sort((x, y) => x - y)[4]);
+    o = circ(o, 5, a => a.reduce((s, x) => s + x, 0) / a.length);
+    return C.map((p, i) => add(p, mul(N[i], o[i])));
+  }
+  // classifications (échelles publiées, voir la synthèse)
+  const BANDS = {
+    CVAI: { min: 0, max: 16, unit: "%", src: "Children's Healthcare of Atlanta (Holowka 2017)",
+      b: [[3.5, "Normal", "#1a7f37"], [6.25, "Léger", "#7a9a00"], [8.75, "Modéré", "#d08a00"], [11, "Sévère", "#d9480f"], [16, "Très sévère", "#b00020"]] },
+    IC: { min: 68, max: 104, unit: "%", src: "Graham et al., J Clin Med 2020 (normal 75–85 % ; brachycéphalie ≥ 90 %)",
+      b: [[75, "Dolicho.", "#5b6bd6", "Dolichocéphalie"], [85, "Normal", "#1a7f37"], [90, "Intermédiaire", "#8fa3b8", "Intermédiaire (seuils variables)"],
+          [93, "Légère", "#d08a00", "Brachycéphalie légère"], [97, "Modérée", "#d9480f", "Brachycéphalie modérée"], [104, "Sévère", "#b00020", "Brachycéphalie sévère"]] },
+    CVA: { min: 0, max: 20, unit: "mm", src: "Moss ; Mortenson & Steinbok (diagonales à 30°)",
+      b: [[3, "Physiologique", "#1a7f37"], [12, "Léger à modéré", "#d08a00"], [20, "Sévère", "#b00020"]] },
+  };
+  function classify(key, v) { const B = BANDS[key].b; const b = B.find(x => v < x[0]) || B[B.length-1]; return [b[3] || b[1], b[2]]; }
+  function cvaiClass(c) {
+    const lv = c < 3.5 ? 1 : c < 6.25 ? 2 : c < 8.75 ? 3 : c < 11 ? 4 : 5;
+    const [lab, col] = classify("CVAI", c);
+    return [`Niveau ${lv} — ${lab.toLowerCase()}`, col];
+  }
+  return { dessus, profil, face, closedSpline, cvaiClass, centroid, resample, insertIndex, snap, area, BANDS, classify };
 })();
 if (typeof module !== "undefined") module.exports = { Seg, Geo };
 </script>
@@ -515,7 +610,7 @@ const COL = { AP: "#ffffff", W: "#ffd400", D1: "#ff4d8d", D2: "#5cff6b", L: "#ff
               contour: "#00e5ff", calib: "#c77dff", point: "#ff3b3b", manual: "#ffd400" };
 const WORK_MAX = 700, IMG_MAX = 2000;
 const S = { view: "dessus", photos: { dessus: [], profil: [], face: [] }, cur: { dessus: null, profil: null, face: null },
-            tool: null, temp: [], drag: null, lastScale: null };
+            tool: null, temp: [], drag: null, lastScale: null, snap: true };
 let seq = 0;
 
 const $ = id => document.getElementById(id);
@@ -546,7 +641,7 @@ async function loadFiles(files) {
     t.width = Math.round(c.width * tk); t.height = Math.round(c.height * tk);
     t.getContext("2d").drawImage(c, 0, 0, t.width, t.height);
     const ph = { id: ++seq, view, img: c, w: c.width, h: c.height, thumb: t.toDataURL("image/jpeg", 0.7),
-      status: "todo", rect: null, point: null, calib: null, caliper: null, manual: null, rawMask: null,
+      status: "todo", rect: null, point: null, calib: null, caliper: null, ctrl: null, rawMask: null, grad: null,
       work: null, contour: null, smooth: SMOOTH[view], res: null, val: null, viewT: null };
     S.photos[view].push(ph);
     if (!S.cur[view] || cur()?.status !== "todo") S.cur[view] = ph.id;
@@ -574,10 +669,11 @@ function nextStage(p) {
   if (!p) return null;
   if (p.view !== "dessus" && !effScale(p) && refMM()) return "calib";
   if (p.caliper) return "idle";
-  if (!p.contour) return "rect";
+  if (!p.contour) return p.view === "dessus" ? "manual" : "caliper";   // profil/face : pied à coulisse par défaut
   if (p.view !== "face" && !p.point) return "point";
   return "idle";
 }
+function measured(p) { return !!(p && (p.caliper || (p.contour && (p.view === "face" || p.point)))); }
 
 function recompute(p) {
   p.res = null;
@@ -619,8 +715,30 @@ function buildContour(p) {
   if (!p.rawMask) return;
   const c = Seg.contourFromMask(p.rawMask, p.work.w, p.work.h, p.smooth);
   p.contour = c ? c.map(([x, y]) => [x / p.work.k, y / p.work.k]) : null;
-  p.manual = null;
+  p.ctrl = null; p.contourSrc = "auto";
 }
+function ensureGrad(p) {
+  if (p.grad) return p.grad;
+  const k = Math.min(1, 1200 / Math.max(p.w, p.h)), w = Math.round(p.w * k), h = Math.round(p.h * k);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const g = c.getContext("2d"); g.drawImage(p.img, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h).data, gray = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) gray[i] = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
+  p.grad = Object.assign(Seg.gradient(gray, w, h), { k });
+  return p.grad;
+}
+// contour à partir des points de contrôle (spline fermée, puis ajustement aux bords si demandé)
+function ctrlContour(p, withSnap) {
+  if (!p.ctrl || p.ctrl.length < 3) return null;
+  let c = Geo.resample(Geo.closedSpline(p.ctrl), 360);
+  if (withSnap && S.snap) c = Geo.snap(c, ensureGrad(p));
+  return c;
+}
+function applyCtrl(p) {
+  p.contour = ctrlContour(p, true); p.contourSrc = "manual"; p.rawMask = null; p.caliper = null;
+}
+// points de contrôle initiaux à partir d'un contour existant
+function seedCtrl(C, n = 14) { return Geo.resample(C, n); }
 
 /* =====================================================================
    Vue (zoom / déplacement)
@@ -653,6 +771,7 @@ function handles(p) {
   if (p.calib) p.calib.forEach((q, i) => H.push({ kind: "calib", i, q }));
   if (p.caliper) p.caliper.forEach((q, i) => H.push({ kind: "caliper", i, q }));
   if (p.point && !p.caliper) H.push({ kind: "point", q: p.point });
+  if (p.ctrl && (S.tool === "manual" || (p.contourSrc === "manual" && !p.caliper))) p.ctrl.forEach((q, i) => H.push({ kind: "ctrl", i, q }));
   return H;
 }
 function hitHandle(p, sx, sy, touch) {
@@ -676,7 +795,7 @@ cv.addEventListener("pointerdown", e => {
   if (e.button === 1 || e.button === 2 || spaceDown) { S.drag = { kind: "pan", last: xy }; return; }
   const ip = toImg(p, ...xy);
   const h = hitHandle(p, ...xy, touch);
-  if (h) { S.drag = { kind: "handle", h, q: ip, touch }; render(); return; }
+  if (h) { S.drag = { kind: "handle", h, q: ip, touch, start: xy }; render(); return; }
   switch (S.tool) {
     case "rect": S.drag = { kind: "rect", a: ip, b: ip }; break;
     case "calib": case "caliper": case "point":
@@ -713,7 +832,7 @@ async function endPointer(e) {
       p.rect = [x0, y0, x1, y1]; p.caliper = null;
       await segmentPhoto(p);
       afterChange(p);
-      if (!p.contour) banner("Détourage impossible — utilisez « Contour manuel » ou « Pied à coulisse »", true);
+      if (!p.contour) banner("Détourage impossible — utilisez « Contour par points » ou « Pied à coulisse »", true);
     }
   } else if (D.kind === "handle") {
     const h = D.h;
@@ -721,6 +840,12 @@ async function endPointer(e) {
     if (h.kind === "caliper") p.caliper[h.i] = D.q;
     if (h.kind === "point") p.point = D.q;
     if (h.kind === "calib" && scaleOf(p)) S.lastScale = scaleOf(p);
+    if (h.kind === "ctrl") {
+      const moved = D.screen ? Math.hypot(D.screen[0] - D.start[0], D.screen[1] - D.start[1]) : 0;
+      if (S.tool === "manual" && moved < 4) p.ctrl.splice(h.i, 1);       // toucher sans glisser = supprimer
+      else p.ctrl[h.i] = D.q;
+      if (S.tool !== "manual") applyCtrl(p);
+    }
     recompute(p);
   } else if (D.kind === "place") {
     if (S.tool === "point") { p.point = D.q; p.caliper = null; afterChange(p); }
@@ -733,7 +858,7 @@ async function endPointer(e) {
       }
     }
   } else if (D.kind === "manual") {
-    p.manual = p.manual || []; p.manual.push(D.q);
+    p.ctrl = p.ctrl || []; p.ctrl.splice(Geo.insertIndex(p.ctrl, D.q), 0, D.q);
   }
   render();
 }
@@ -747,10 +872,10 @@ cv.addEventListener("wheel", e => {
 function afterChange(p) { recompute(p); S.tool = nextStage(p); S.temp = []; }
 
 window.addEventListener("keydown", e => {
-  if (e.target.tagName === "INPUT") return;
+  if (e.target.tagName === "INPUT" && !["checkbox", "range"].includes(e.target.type)) return;
   if (e.code === "Space") { spaceDown = true; e.preventDefault(); }
   if (e.key === "Enter") validate();
-  if (e.key === "Escape") { const p = cur(); S.temp = []; if (p) { p.manual = null; S.tool = nextStage(p); } render(); }
+  if (e.key === "Escape") { const p = cur(); S.temp = []; if (p) { S.tool = nextStage(p); }  render(); }
 });
 window.addEventListener("keyup", e => { if (e.code === "Space") spaceDown = false; });
 window.addEventListener("resize", () => { const p = cur(); if (p) fit(p); render(); });
@@ -769,14 +894,21 @@ document.querySelectorAll("[data-tool]").forEach(b => b.addEventListener("click"
   const p = cur(); if (!p) return;
   const t = b.dataset.tool;
   S.temp = [];
-  if (t === "manual") { p.manual = []; }
-  S.tool = S.tool === t ? nextStage(p) : t;
+  if (S.tool === t) { S.tool = nextStage(p); render(); return; }
+  // contour par points : part du contour existant (auto ou précédent) s'il y en a un
+  if (t === "manual" && !p.ctrl && p.contour) p.ctrl = seedCtrl(p.contour);
+  S.tool = t;
   render();
 }));
 $("finishManual").addEventListener("click", () => {
-  const p = cur(); if (!p || !p.manual || p.manual.length < 5) { banner("Placez au moins 5 points autour du crâne", true); return; }
-  p.contour = Geo.closedSpline(p.manual); p.manual = null; p.rawMask = null; p.caliper = null;
-  afterChange(p); render();
+  const p = cur(); if (!p || !p.ctrl || p.ctrl.length < 5) { banner("Placez au moins 5 points autour du crâne", true); return; }
+  applyCtrl(p); afterChange(p); render();
+});
+$("clearManual").addEventListener("click", () => { const p = cur(); if (p) { p.ctrl = []; render(); } });
+$("snap").addEventListener("change", e => {
+  S.snap = e.target.checked;
+  allPhotos().forEach(p => { if (p.contourSrc === "manual" && p.ctrl) { p.contour = ctrlContour(p, true); recompute(p); } });
+  render();
 });
 $("smooth").addEventListener("input", e => {
   const p = cur(); const v = parseFloat(e.target.value);
@@ -821,10 +953,11 @@ function instruction(p) {
   switch (S.tool) {
     case "calib": return S.temp.length ? "Calibration — 2e extrémité de la référence" : `Calibration — touchez les 2 extrémités de la référence (${fmt(ref, 1)} mm)`;
     case "rect": return "Tracez un cadre autour de la tête";
-    case "point": return p.view === "dessus" ? "Touchez la pointe du nez" : "Touchez la glabelle";
+    case "point": return p.view === "dessus" ? "Touchez la pointe du nez (ou, s'il n'est pas visible, le milieu du front)" : "Touchez la glabelle";
     case "caliper": return S.temp.length ? "Pied à coulisse — 2e point" : "Pied à coulisse — touchez les 2 points de mesure";
-    case "manual": return `Contour manuel — touchez le pourtour du crâne (${p.manual ? p.manual.length : 0} points), puis « Terminer »`;
-    case "idle": return p.status === "ok" ? "Mesure validée" : "Contrôlez le tracé (points déplaçables), puis validez";
+    case "manual": return (p.ctrl && p.ctrl.length) ? `${p.ctrl.length} points — touchez pour ajouter, glissez pour déplacer, touchez un point pour le retirer`
+      : "Placez 10 à 15 points autour du crâne, sans viser au pixel près : l'ajustement aux bords affine — puis « Terminer »";
+    case "idle": return p.status === "ok" ? "Mesure validée" : "Contrôlez le tracé (tous les points sont déplaçables), puis validez";
   }
   return null;
 }
@@ -852,26 +985,30 @@ function render() {
   $("drop").classList.toggle("hidden", !!p);
 
   // étapes
-  $("pointLabel").textContent = POINT_LABEL[view] || "";
-  const order = ["calib", "rect", "point", "idle"];
-  const na = { calib: view === "dessus" && !(p && p.calib), point: view === "face" };
-  const done = p ? { calib: !!effScale(p), rect: !!(p.contour || p.caliper), point: !!(p.point || p.caliper), idle: p.status === "ok" } : {};
-  let n = 0;
-  document.querySelectorAll("#steps li").forEach(li => {
-    const s = li.dataset.s, dot = li.querySelector(".dot"); li.className = "";
-    if (na[s]) { li.classList.add("na"); return; }
-    n++;
-    if (done[s]) { li.classList.add("done"); dot.textContent = "✓"; } else dot.textContent = n;
-    if (p && S.tool === s && !done[s]) li.classList.add("now");
-  });
+  const steps = [];
+  if (view !== "dessus" || (p && p.calib)) steps.push(["calib", "Calibration (référence)", !!(p && effScale(p))]);
+  if (view === "dessus") {
+    steps.push(["rect", "Contour du crâne (points ou auto)", !!(p && p.contour)]);
+    steps.push(["point", "Pointer le nez / milieu du front", !!(p && p.point)]);
+  } else {
+    steps.push(["caliper", view === "profil" ? "Mesurer glabelle → opisthocranion" : "Mesurer euryon → euryon", measured(p)]);
+  }
+  steps.push(["idle", "Contrôler et valider", !!(p && p.status === "ok")]);
+  const nowS = S.tool === "manual" || S.tool === "rect" ? (view === "dessus" ? "rect" : "caliper") : S.tool === "point" && view !== "dessus" ? "caliper" : S.tool;
+  $("steps").innerHTML = steps.map(([k, lab, ok], i) =>
+    `<li class="${ok ? "done" : p && nowS === k ? "now" : ""}"><span class="dot">${ok ? "✓" : i + 1}</span><span>${lab}</span></li>`).join("");
 
   // outils
   document.querySelectorAll("[data-tool]").forEach(b => { b.disabled = !p; b.classList.toggle("active", S.tool === b.dataset.tool); });
-  $("toolPoint").classList.toggle("hidden", view === "face");
+  $("toolPoint").classList.toggle("hidden", view === "face" || (view === "profil" && !(p && p.contour && !p.caliper)));
   $("toolPoint").textContent = view === "dessus" ? "Repointer le nez" : "Repointer glabelle";
   $("toolCaliper").classList.toggle("hidden", view === "dessus");
-  $("finishManual").classList.toggle("hidden", S.tool !== "manual");
+  $("toolRect").textContent = view === "dessus" ? "Détourage auto" : "Détourage auto";
+  $("manualBar").classList.toggle("hidden", S.tool !== "manual");
+  $("toolManual").textContent = p && p.ctrl && p.ctrl.length ? "Modifier les points" : "Contour par points";
+  $("snap").checked = S.snap;
   const sm = $("smooth"); sm.disabled = !(p && p.rawMask);
+  $("smoothRow").classList.toggle("hidden", !(p && p.rawMask));
   if (p) { sm.value = p.smooth; $("smoothOut").textContent = fmt(p.smooth, 2); }
 
   // résultat
@@ -923,15 +1060,23 @@ function draw() {
     ctx.lineWidth = 1.5; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.moveTo(x-r-4, y); ctx.lineTo(x+r+4, y); ctx.moveTo(x, y-r-4); ctx.lineTo(x, y+r+4); ctx.stroke(); };
 
   // contour
-  if (p.contour && S.tool !== "manual") {
+  if (p.contour && S.tool !== "manual" && !(S.drag?.kind === "handle" && S.drag.h.kind === "ctrl")) {
     ctx.lineWidth = 2; ctx.strokeStyle = COL.contour; ctx.beginPath();
     p.contour.forEach((q, i) => { const s = S2(q); i ? ctx.lineTo(...s) : ctx.moveTo(...s); }); ctx.closePath(); ctx.stroke();
   }
-  // contour manuel en cours
-  if (p.manual && p.manual.length) {
-    ctx.lineWidth = 1.5; ctx.strokeStyle = COL.manual; ctx.beginPath();
-    p.manual.forEach((q, i) => { const s = S2(q); i ? ctx.lineTo(...s) : ctx.moveTo(...s); }); ctx.stroke();
-    p.manual.forEach(q => { const [x, y] = S2(q); ctx.fillStyle = COL.manual; ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 7); ctx.fill(); });
+  // points de contrôle (contour par points) + aperçu de la courbe
+  const dragCtrl = S.drag?.kind === "handle" && S.drag.h.kind === "ctrl";
+  const showCtrl = p.ctrl && p.ctrl.length && (S.tool === "manual" || (p.contourSrc === "manual" && !p.caliper));
+  if (showCtrl) {
+    const ctrl = dragCtrl ? p.ctrl.map((q, i) => i === S.drag.h.i ? S.drag.q : q) : p.ctrl;
+    if ((S.tool === "manual" || dragCtrl) && ctrl.length >= 3) {
+      const prev = Geo.closedSpline(ctrl, 16);
+      ctx.setLineDash([6, 4]); ctx.lineWidth = 1.5; ctx.strokeStyle = COL.manual; ctx.beginPath();
+      prev.forEach((q, i) => { const s = S2(q); i ? ctx.lineTo(...s) : ctx.moveTo(...s); }); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctrl.forEach(q => { const [x, y] = S2(q);
+      ctx.lineWidth = 3; ctx.strokeStyle = "rgba(0,0,0,.6)"; ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.stroke();
+      ctx.lineWidth = 2; ctx.strokeStyle = COL.manual; ctx.beginPath(); ctx.arc(x, y, 5, 0, 7); ctx.stroke(); });
   }
   // calibration
   const calib = S.drag?.kind === "handle" && S.drag.h.kind === "calib" ? p.calib.map((q, i) => i === S.drag.h.i ? S.drag.q : q) : p.calib;
@@ -957,7 +1102,7 @@ function draw() {
   // point en cours de placement + loupe
   const D = S.drag;
   if (D && (D.kind === "place" || D.kind === "handle" || D.kind === "manual")) {
-    const col = D.kind === "handle" ? COL[D.h.kind === "point" ? "point" : D.h.kind === "calib" ? "calib" : "pied"]
+    const col = D.kind === "handle" ? COL[{ point: "point", calib: "calib", caliper: "pied", ctrl: "manual" }[D.h.kind]]
               : S.tool === "calib" ? COL.calib : S.tool === "point" ? COL.point : S.tool === "manual" ? COL.manual : COL.pied;
     cross(D.q, col, 7);
     loupe(p, D.q, col);
@@ -997,31 +1142,68 @@ function computeSummary() {
   return out;
 }
 const pm = (s, d) => `${fmt(s.m, d)} ± ${fmt(s.sd, d)}`;
+/* jauge horizontale : bandes de sévérité + marqueur de la valeur */
+function gauge(key, v, sd) {
+  const B = Geo.BANDS[key], span = B.max - B.min, pos = x => Math.min(100, Math.max(0, 100 * (x - B.min) / span));
+  let lo = B.min, segs = "", ticks = "";
+  B.b.forEach(([hi, lab, col], i) => {
+    segs += `<div class="seg" style="left:${pos(lo)}%;width:${pos(hi) - pos(lo)}%;background:${col}"><span>${lab}</span></div>`;
+    if (i < B.b.length - 1) ticks += `<span class="tick num" style="left:${pos(hi)}%">${fmt(hi, hi % 1 ? 2 : 0)}</span>`;
+    lo = hi;
+  });
+  const err = sd ? `<div class="err" style="left:${pos(v - sd)}%;width:${pos(v + sd) - pos(v - sd)}%"></div>` : "";
+  return `<div class="gauge"><div class="bar">${segs}${err}<div class="mark" style="left:${pos(v)}%"></div></div><div class="ticks">${ticks}</div></div>`;
+}
+function metric(title, key, s, d, sub) {
+  const [lab, col] = Geo.classify(key, s.m);
+  return `<div class="metric">
+    <div class="mhead"><span class="mtitle">${title}</span><span class="mval num">${pm(s, d)} <small>${Geo.BANDS[key].unit}</small></span></div>
+    <div class="msub"><span class="class" style="background:${col}1f;color:${col}">${key === "CVAI" ? Geo.cvaiClass(s.m)[0] : lab}</span><span>${sub || ""}</span></div>
+    ${gauge(key, s.m, s.sd)}</div>`;
+}
 function renderSummary() {
   const R = computeSummary(), cards = [];
+  // Interprétation
+  if (R.cvai || R.ic || R.ic2d) {
+    const icRef = R.ic || R.ic2d;
+    let m = "";
+    if (R.cvai) m += metric("CVAI — asymétrie (plagiocéphalie)", "CVAI", R.cvai, 2, `vue de dessus, n = ${R.cvai.n}`);
+    if (R.cva) m += metric("CVA — différence des diagonales", "CVA", R.cva, 1, `vue de dessus calibrée, n = ${R.cva.n}`);
+    if (icRef) m += metric("IC — proportion largeur / longueur (brachycéphalie)", "IC", icRef, 1,
+      R.ic ? "IC orthogonal (face + profil)" : "IC de la vue de dessus, faute de face + profil");
+    let note = "";
+    if (R.ic && R.ic2d) note = `<p class="fine">IC vue de dessus : <span class="num">${pm(R.ic2d, 1)} %</span> — écart avec l'IC orthogonal : <span class="num">${fmt(R.ic2d.m - R.ic.m, 1)}</span> point(s). Un écart important suggère une photo de dessus inclinée ou des cheveux qui élargissent le contour.</p>`;
+    cards.push(`<div class="card"><h3>Interprétation</h3>${m}${note}</div>`);
+  }
+  // Détail des clichés
   if (R.cvai) {
-    const [cl, col] = Geo.cvaiClass(R.cvai.m);
-    cards.push(`<div class="card"><h3>Vue de dessus</h3>
-      <div class="big"><span>CVAI</span><span class="v num">${pm(R.cvai, 2)} %</span></div>
-      <span class="class" style="background:${col}1f;color:${col}">${cl}</span>
-      <table style="margin-top:12px"><tr><th>Photo</th><th>CVAI (%)</th><th>IC dessus (%)</th><th>CVA (mm)</th></tr>
-      ${R.D.map((p, i) => `<tr><td>${i+1}</td><td class="num">${fmt(p.val.CVAI, 2)}</td><td class="num">${fmt(p.val.IC2D, 1)}</td><td class="num">${fmt(p.val.CVA, 1)}</td></tr>`).join("")}
-      <tr class="mean"><td>Moyenne ± ET</td><td class="num">${pm(R.cvai, 2)}</td><td class="num">${pm(R.ic2d, 1)}</td><td class="num">${R.cva ? pm(R.cva, 1) : "—"}</td></tr></table></div>`);
+    cards.push(`<div class="card"><h3>Vue de dessus — détail</h3>
+      <table><tr><th>Photo</th><th class="txt">Contour</th><th>CVAI (%)</th><th>IC dessus (%)</th><th>CVA (mm)</th></tr>
+      ${R.D.map((p, i) => `<tr><td>${i+1}</td><td class="txt">${p.contourSrc === "manual" ? "par points" : "auto"}</td><td class="num">${fmt(p.val.CVAI, 2)}</td><td class="num">${fmt(p.val.IC2D, 1)}</td><td class="num">${fmt(p.val.CVA, 1)}</td></tr>`).join("")}
+      <tr class="mean"><td>Moyenne ± ET</td><td></td><td class="num">${pm(R.cvai, 2)}</td><td class="num">${pm(R.ic2d, 1)}</td><td class="num">${R.cva ? pm(R.cva, 1) : "—"}</td></tr></table></div>`);
   }
   if (R.L || R.W) {
-    const rows = (lst, key) => lst.map((p, i) => `<tr><td>${i+1}${p.res.manuel ? " (pied à coulisse)" : ""}</td><td class="num">${fmt(p.val[key], 1)}</td></tr>`).join("");
-    cards.push(`<div class="card"><h3>Profil et face</h3>
-      ${R.ic ? `<div class="big"><span>IC orthogonal</span><span class="v num">${pm(R.ic, 1)} %</span></div>
-      <p class="privacy" style="text-align:left;margin:4px 0 12px">Largeur (face) / longueur antéro-postérieure (profil) × 100</p>` : ""}
+    const rows = (lst, key) => lst.map((p, i) => `<tr><td>${i+1}</td><td class="txt">${p.res.manuel ? "pied à coulisse" : "auto"}</td><td class="num">${fmt(p.val[key], 1)}</td></tr>`).join("");
+    cards.push(`<div class="card"><h3>Profil et face — détail</h3>
       <div class="row2" style="gap:24px">
-        <table><tr><th>Profil</th><th>Longueur AP (mm)</th></tr>${rows(R.P.filter(p => p.val.L != null), "L")}
-          ${R.L ? `<tr class="mean"><td>Moyenne ± ET</td><td class="num">${pm(R.L, 1)}</td></tr>` : ""}</table>
-        <table><tr><th>Face</th><th>Largeur (mm)</th></tr>${rows(R.F.filter(p => p.val.W != null), "W")}
-          ${R.W ? `<tr class="mean"><td>Moyenne ± ET</td><td class="num">${pm(R.W, 1)}</td></tr>` : ""}</table>
-      </div></div>`);
+        <table><tr><th>Profil</th><th class="txt">Mesure</th><th>Longueur AP (mm)</th></tr>${rows(R.P.filter(p => p.val.L != null), "L")}
+          ${R.L ? `<tr class="mean"><td>Moyenne ± ET</td><td></td><td class="num">${pm(R.L, 1)}</td></tr>` : ""}</table>
+        <table><tr><th>Face</th><th class="txt">Mesure</th><th>Largeur (mm)</th></tr>${rows(R.F.filter(p => p.val.W != null), "W")}
+          ${R.W ? `<tr class="mean"><td>Moyenne ± ET</td><td></td><td class="num">${pm(R.W, 1)}</td></tr>` : ""}</table>
+      </div>
+      ${R.ic ? "" : `<p class="fine">L'IC orthogonal apparaît dès qu'il y a au moins une photo de profil et une de face validées et calibrées.</p>`}</div>`);
   }
   if (!cards.length) cards.push(`<div class="card"><p class="empty" style="margin:0">Aucune mesure validée pour l'instant.</p></div>`);
-  else cards.push(`<div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn primary" id="copy">Copier le résumé</button></div>`);
+  else cards.push(`<div style="display:flex;justify-content:flex-end"><button class="btn primary" id="copy">Copier le résumé</button></div>`);
+  // Références
+  const B = Geo.BANDS;
+  cards.push(`<div class="card refs"><h3>Valeurs de référence</h3>
+    <table class="reftab">
+      <tr><th>CVAI</th><td>&lt; 3,5 % normal · 3,5–6,25 léger · 6,25–8,75 modéré · 8,75–11 sévère · ≥ 11 très sévère</td><td>${B.CVAI.src}</td></tr>
+      <tr><th>CVA</th><td>&lt; 3 mm physiologique · 3–12 mm léger à modéré · &gt; 12 mm sévère</td><td>${B.CVA.src}</td></tr>
+      <tr><th>IC</th><td>75–85 % normal · ≥ 90 % brachycéphalie (90–93 légère · 93–97 modérée · &gt; 97 sévère) · &lt; 75 % dolichocéphalie</td><td>${B.IC.src}</td></tr>
+    </table>
+    <p class="fine">Les seuils de brachycéphalie varient beaucoup selon les auteurs (de ≥ 80 % à ≥ 97 %) ; la zone 85–90 % est donc indiquée comme intermédiaire. Ces normes ont été établies au pied à coulisse ou par scanner 3D (euryon–euryon / glabelle–opisthocranion) : l'IC orthogonal s'en rapproche davantage que l'IC de la vue de dessus. Repères d'aide à l'analyse, à interpréter avec l'âge et la clinique.</p></div>`);
   cards.push(`<p class="privacy">Traitement entièrement local : aucune image ni mesure n'est envoyée ni conservée. Tout est effacé à la fermeture de la page.</p>`);
   $("sumWrap").innerHTML = cards.join("");
   const c = $("copy"); if (c) c.onclick = async () => {
@@ -1031,10 +1213,12 @@ function renderSummary() {
 }
 function summaryText(R) {
   const L = [`Mesure crânienne — ${new Date().toLocaleDateString("fr-FR")}`];
-  if (R.cvai) L.push(`Dessus (n=${R.cvai.n}) : CVAI ${pm(R.cvai, 2)} % (${Geo.cvaiClass(R.cvai.m)[0]}) ; IC dessus ${pm(R.ic2d, 1)} %` + (R.cva ? ` ; CVA ${pm(R.cva, 1)} mm` : ""));
-  if (R.L) L.push(`Profil (n=${R.L.n}) : longueur AP ${pm(R.L, 1)} mm`);
-  if (R.W) L.push(`Face (n=${R.W.n}) : largeur ${pm(R.W, 1)} mm`);
-  if (R.ic) L.push(`IC orthogonal : ${pm(R.ic, 1)} %`);
+  if (R.cvai) L.push(`CVAI ${pm(R.cvai, 2)} % (n=${R.cvai.n}) — ${Geo.cvaiClass(R.cvai.m)[0]} [normal < 3,5 %]`);
+  if (R.cva) L.push(`CVA ${pm(R.cva, 1)} mm — ${Geo.classify("CVA", R.cva.m)[0].toLowerCase()} [physiologique < 3 mm]`);
+  if (R.ic) L.push(`IC orthogonal ${pm(R.ic, 1)} % — ${Geo.classify("IC", R.ic.m)[0].toLowerCase()} [normal 75–85 %, brachycéphalie ≥ 90 %]`);
+  if (R.ic2d) L.push(`IC vue de dessus ${pm(R.ic2d, 1)} %`);
+  if (R.L) L.push(`Longueur AP ${pm(R.L, 1)} mm (n=${R.L.n}) ; ` + (R.W ? `largeur ${pm(R.W, 1)} mm (n=${R.W.n})` : ""));
+  else if (R.W) L.push(`Largeur ${pm(R.W, 1)} mm (n=${R.W.n})`);
   return L.join("\n");
 }
 
